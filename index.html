@@ -1,5 +1,10 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><meta name="theme-color" content="#fdebf2"><style>html{background:#fdebf2}</style>
-<title>ANSSIPASI v2.0.70</title><!-- v2.0.65 clean startup baseline: diagnostic overlay removed; game logic unchanged from v2.0.63 --><style>
+<title>ANSSIPASI v2.0.70</title>
+<script>document.documentElement.classList.add('v288Boot');</script>
+<style>
+/* v2.0.88 startup paint guard: keep gameplay chrome hidden until TASK card is visible. */
+html.v288Boot body>header,html.v288Boot body>main{visibility:hidden!important}
+</style><!-- v2.0.65 clean startup baseline: diagnostic overlay removed; game logic unchanged from v2.0.63 --><style>
 *{box-sizing:border-box}body{margin:0;background:#fdebf2;font-family:Arial;color:#3b2c34;touch-action:none;overflow:hidden}
 header{height:58px;background:#fff7fa;display:flex;align-items:center;gap:7px;padding:7px 12px;border-bottom:2px solid #f3bfd2}.brand{font-size:24px;font-weight:900}.tag{font-size:9px;color:#a85c79}.grow{flex:1}
 button{border:0;border-radius:9px;padding:8px 10px;background:#f6ccdc;font-weight:800;color:#5c3b49}.stop{background:#df3d60;color:white}
@@ -6706,11 +6711,7 @@ body.v215Answer #v215AnswerPanel #vc251Next{background:#e43f7f!important;color:#
         let place=st.place?{x:st.place.x,y:st.place.y}:null;
         /* DOM geometry wins. This also preserves the last selected piece if an
            Android pointer sequence has temporarily moved it under <body>
-<!-- v2.0.87 deterministic cold-start cover -->
-<div id="v287LaunchCover" aria-hidden="true"></div>
-<style>
-#v287LaunchCover{position:fixed;inset:0;z-index:2147483647;background:#fff;display:block;pointer-events:auto}
-</style>. */
+. */
         place=visibleBoardPlace254(e,place);
         states[id]={
           c:cloneCells254(st.c||P[id]),
@@ -7817,29 +7818,34 @@ body.v277TaskActive .piece.sel{
 })();
 </script>
 
-
-<!-- ANSSIPASI v2.0.87: deterministic white cold-start delay on GitHub Pages. -->
+<!-- ANSSIPASI v2.0.88: no-flash GitHub startup. Gameplay logic unchanged. -->
 <script>
 (()=>{
-  const cover=document.getElementById('v287LaunchCover');
-  const born=performance.now();
-  const MIN_WHITE_MS=1800;
-  function releaseLaunchCover(){
-    const wait=Math.max(0,MIN_WHITE_MS-(performance.now()-born));
-    setTimeout(()=>{
-      if(cover){
-        cover.style.opacity='0';
-        cover.style.transition='opacity 120ms linear';
-        setTimeout(()=>cover.remove(),140);
-      }
-    },wait);
+  const finish=()=>{
+    const tc=document.getElementById('taskCard');
+    if(!tc) return false;
+    const shown=getComputedStyle(tc).display!=='none';
+    if(!shown) return false;
+    document.documentElement.classList.remove('v288Boot');
+    return true;
+  };
+  if(!finish()){
+    const tc=document.getElementById('taskCard');
+    if(tc){
+      const mo=new MutationObserver(()=>{ if(finish()) mo.disconnect(); });
+      mo.observe(tc,{attributes:true,attributeFilter:['style','class']});
+    }
+    let tries=0;
+    const tick=()=>{
+      if(finish() || ++tries>180) return;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
-  if(document.readyState==='complete') releaseLaunchCover();
-  else window.addEventListener('load',releaseLaunchCover,{once:true});
-  document.title='ANSSIPASI v2.0.87';
+  document.title='ANSSIPASI v2.0.88';
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-      c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.0.87';
+      c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.0.88';
     });
   }));
 })();
