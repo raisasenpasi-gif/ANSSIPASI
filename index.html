@@ -6705,7 +6705,12 @@ body.v215Answer #v215AnswerPanel #vc251Next{background:#e43f7f!important;color:#
         const e=document.querySelector(`.piece[data-id="${id}"]`);
         let place=st.place?{x:st.place.x,y:st.place.y}:null;
         /* DOM geometry wins. This also preserves the last selected piece if an
-           Android pointer sequence has temporarily moved it under <body>. */
+           Android pointer sequence has temporarily moved it under <body>
+<!-- v2.0.87 deterministic cold-start cover -->
+<div id="v287LaunchCover" aria-hidden="true"></div>
+<style>
+#v287LaunchCover{position:fixed;inset:0;z-index:2147483647;background:#fff;display:block;pointer-events:auto}
+</style>. */
         place=visibleBoardPlace254(e,place);
         states[id]={
           c:cloneCells254(st.c||P[id]),
@@ -7812,3 +7817,30 @@ body.v277TaskActive .piece.sel{
 })();
 </script>
 
+
+<!-- ANSSIPASI v2.0.87: deterministic white cold-start delay on GitHub Pages. -->
+<script>
+(()=>{
+  const cover=document.getElementById('v287LaunchCover');
+  const born=performance.now();
+  const MIN_WHITE_MS=1800;
+  function releaseLaunchCover(){
+    const wait=Math.max(0,MIN_WHITE_MS-(performance.now()-born));
+    setTimeout(()=>{
+      if(cover){
+        cover.style.opacity='0';
+        cover.style.transition='opacity 120ms linear';
+        setTimeout(()=>cover.remove(),140);
+      }
+    },wait);
+  }
+  if(document.readyState==='complete') releaseLaunchCover();
+  else window.addEventListener('load',releaseLaunchCover,{once:true});
+  document.title='ANSSIPASI v2.0.87';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+      c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.0.87';
+    });
+  }));
+})();
+</script>
