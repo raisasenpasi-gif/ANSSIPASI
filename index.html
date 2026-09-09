@@ -8996,3 +8996,70 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
   sync(); requestAnimationFrame(()=>requestAnimationFrame(sync)); setTimeout(sync,250);
 })();
 </script>
+
+<!-- ANSSIPASI v2.0.98: board-specific NUMBER OF TASKS chooser for JUMBO + PARTIAL.
+     FULL keeps its established flow. PARTIAL geometry/scale is untouched. -->
+<script>
+(()=>{
+  const VERSION='v2.0.98';
+  const taskCard=document.getElementById('taskCard');
+  const taskTitle=document.getElementById('taskTitle');
+  const taskMeta=document.getElementById('taskMeta');
+  const startBtn=document.getElementById('startTask');
+  const progress=document.getElementById('sessionProgressCard');
+  const fullBtn=document.getElementById('fullBtn');
+  const jumboBtn=document.getElementById('jumboBtn');
+  const partialBtn=document.getElementById('partialBtn');
+
+  function chooser(){ return document.getElementById('taskCountChooser'); }
+
+  function forceChooser(mode){
+    const c=chooser();
+    if(!taskCard || !c) return;
+
+    // Keep the board mode that was just selected. Only expose the existing
+    // NUMBER OF TASKS card; do not reset board geometry or task pieces here.
+    if(mode==='partial'){
+      if(taskTitle) taskTitle.textContent='TASK P001';
+      if(taskMeta) taskMeta.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+    }
+
+    taskCard.style.display='flex';
+    c.style.display='block';
+    c.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+    if(progress) progress.style.display='none';
+    if(startBtn) startBtn.disabled=true;
+    try{ paused=true; taskCardPauseAt=Date.now(); }catch(_){ }
+  }
+
+  // Capture at document level so this survives older button handlers that use
+  // stopImmediatePropagation on the button itself. Delayed execution lets the
+  // selected board finish its own mode switch first.
+  document.addEventListener('click',ev=>{
+    const p=ev.target?.closest?.('#partialBtn');
+    const j=ev.target?.closest?.('#jumboBtn');
+    if(!p && !j) return;
+    const mode=p?'partial':'jumbo';
+    setTimeout(()=>forceChooser(mode),90);
+    setTimeout(()=>forceChooser(mode),220);
+  },true);
+
+  // If a count is chosen while PARTIAL is active, keep the card metadata on
+  // PARTIAL after the legacy chooser decorates the session row.
+  chooser()?.addEventListener('click',ev=>{
+    if(!ev.target?.closest?.('[data-count]')) return;
+    if(!partialBtn?.classList.contains('on')) return;
+    setTimeout(()=>{
+      if(taskTitle) taskTitle.textContent='TASK P001';
+      if(taskMeta) taskMeta.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+    },0);
+  },true);
+
+  document.title='ANSSIPASI '+VERSION;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+      c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+    });
+  }));
+})();
+</script>
