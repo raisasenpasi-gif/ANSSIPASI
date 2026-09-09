@@ -202,45 +202,59 @@ function choose(id){
 function clear(id){S[id].place=null;rebuildOcc(id)}
 function down(ev){
  if(paused||solved)return;
- let id=+ev.currentTarget.dataset.id,e=ev.currentTarget,r=e.getBoundingClientRect();
- e._tapStart=[ev.clientX,ev.clientY,Date.now()];
- e._tapOrigin={place:S[id].place?{x:S[id].place.x,y:S[id].place.y}:null,inShelf:e.parentElement===shelf,left:r.left,top:r.top};
- choose(id);drag=id;document.querySelector("#tools")?.classList.add("dragHidden");
- off=[ev.clientX-r.left,ev.clientY-r.top];if(S[id].place)clear(id);
- (window.__piecePortal2116||document.body).append(e);e.style.position="fixed";e.style.transform="scale(1)";e.style.zIndex=1000;move(ev);
- try{e.setPointerCapture(ev.pointerId)}catch(_){/* capture is optional */}
+ const e=ev.currentTarget,id=+e.dataset.id,r=e.getBoundingClientRect();
+ /* v2.1.26: a stationary tap must NOT detach, clear or re-parent the piece.
+    We only arm a possible drag here. The actual drag starts after the finger
+    has moved far enough. This removes the repeated DOM churn that made later
+    pieces increasingly sticky and made tap counts unreliable. */
+ pendingPieceDrag={
+   id,pointerId:ev.pointerId,startX:ev.clientX,startY:ev.clientY,
+   offX:ev.clientX-r.left,offY:ev.clientY-r.top,
+   left:r.left,top:r.top
+ };
+ choose(id);
+ try{e.setPointerCapture(ev.pointerId)}catch(_){ }
 }
-function move(ev){if(drag==null)return;let e=document.querySelector(`[data-id="${drag}"]`);e.style.left=ev.clientX-off[0]+"px";e.style.top=ev.clientY-off[1]+"px"}
-addEventListener("pointermove",move);
-addEventListener("pointerup",(ev)=>{
+let pendingPieceDrag=null;
+function beginPendingDrag(ev){
+ const q=pendingPieceDrag;if(!q||q.pointerId!==ev.pointerId)return false;
+ const e=document.querySelector(`[data-id="${q.id}"]`);if(!e){pendingPieceDrag=null;return false}
+ drag=q.id;off=[q.offX,q.offY];
+ document.querySelector('#tools')?.classList.add('dragHidden');
+ if(S[q.id].place)clear(q.id);
+ (window.__piecePortal2116||document.body).append(e);
+ Object.assign(e.style,{position:'fixed',transform:'scale(1)',zIndex:1000});
+ pendingPieceDrag=null;
+ move(ev);return true;
+}
+function move(ev){
+ if(drag==null){
+   const q=pendingPieceDrag;
+   if(!q||q.pointerId!==ev.pointerId)return;
+   /* 10 px keeps a normal finger tap completely stationary while still
+      making a deliberate drag start immediately. */
+   if(Math.hypot(ev.clientX-q.startX,ev.clientY-q.startY)<10)return;
+   beginPendingDrag(ev);return;
+ }
+ let e=document.querySelector(`[data-id="${drag}"]`);if(!e)return;
+ e.style.left=ev.clientX-off[0]+'px';e.style.top=ev.clientY-off[1]+'px';
+}
+addEventListener('pointermove',move);
+addEventListener('pointerup',(ev)=>{
+ /* Pure tap path. Nothing has moved in the DOM and DROP is never called. */
+ if(drag==null && pendingPieceDrag && pendingPieceDrag.pointerId===ev.pointerId){
+   const id=pendingPieceDrag.id;
+   pendingPieceDrag=null;
+   window.__pieceTapPoint2126={x:ev.clientX,y:ev.clientY};
+   gestureTap(id);
+   requestAnimationFrame(positionTools);
+   return;
+ }
  if(drag==null)return;
  const id=drag;
- const pe=document.querySelector(`[data-id="${id}"]`);
- const ts=pe?pe._tapStart:null;
- const wasTap=!!(ts && Math.hypot(ev.clientX-ts[0],ev.clientY-ts[1])<12 && Date.now()-ts[2]<500);
- try{
-   if(wasTap&&!suppressTap){
-     const o=pe?pe._tapOrigin:null;
-     if(pe&&o){
-       if(o.place){
-         S[id].place={x:o.place.x,y:o.place.y};rebuildOcc();board.append(pe);
-         Object.assign(pe.style,{position:"absolute",left:o.place.x*cell+"px",top:o.place.y*cell+"px",transform:"scale(1)",zIndex:5});
-       }else if(o.inShelf){
-         shelf.append(pe);render(id);const sl=S[id].slot;
-         if(sl)Object.assign(pe.style,{position:"absolute",left:sl.x+"px",top:sl.y+"px",transform:`scale(${sl.scale})`,transformOrigin:"top left",zIndex:2});
-       }else{
-         (window.__piecePortal2116||document.body).append(pe);
-         Object.assign(pe.style,{position:"fixed",left:o.left+"px",top:o.top+"px",transform:"scale(1)",zIndex:1000});
-       }
-     }
-     window.__pieceTapPoint2124={x:ev.clientX,y:ev.clientY};
-     gestureTap(id);
-   }else{
-     drop(id);
-   }
- } finally {
-   drag=null;
-   tools.classList.remove("dragHidden");
+ try{drop(id)}finally{
+   drag=null;pendingPieceDrag=null;
+   tools.classList.remove('dragHidden');
    requestAnimationFrame(positionTools);
  }
 });
@@ -9370,7 +9384,7 @@ body > .piece.sel{
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.25 SINGLE GESTURE OWNER + BOARD MODE FIX -->
+<!-- ANSSIPASI v2.1.26 STATIONARY TAP + SINGLE GESTURE OWNER -->
 <style>
 /* While a piece tap sequence owns the finger, BOARD choices cannot become the
    target of Android's synthetic post-touch click. */
@@ -9378,7 +9392,7 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 </style>
 <script>
 (()=>{
-  const VERSION='v2.1.25';
+  const VERSION='v2.1.26';
   const TAP_WINDOW=560;
   let seq={id:null,count:0,last:0,preFlip:null,timer:null};
   const clone=a=>Array.isArray(a)?a.map(q=>[q[0],q[1]]):null;
@@ -9446,7 +9460,30 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     },40);
   },false);
 
-  document.title='ANSSIPASI '+VERSION+' · SINGLE GESTURE OWNER';
+  document.title='ANSSIPASI '+VERSION+' · STATIONARY TAP OWNER';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+<!-- ANSSIPASI v2.1.26 POST-TAP CLICK EATER -->
+<script>
+(()=>{
+  let genuineBoardDownUntil=0;
+  window.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')) genuineBoardDownUntil=performance.now()+700;
+  },true);
+  window.addEventListener('click',ev=>{
+    const p=window.__pieceTapPoint2126;
+    if(!p || performance.now()<genuineBoardDownUntil) return;
+    const b=ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
+    if(!b)return;
+    const dx=ev.clientX-p.x,dy=ev.clientY-p.y;
+    if(dx*dx+dy*dy<=24*24){
+      ev.preventDefault();ev.stopImmediatePropagation();
+      window.__pieceTapPoint2126=null;
+    }
+  },true);
+  document.title='ANSSIPASI v2.1.26 · STATIONARY TAP OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.26');
+})();
+</script>
+
