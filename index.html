@@ -9290,3 +9290,51 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 <script>
 (()=>{const VERSION='v2.1.10';document.title='ANSSIPASI '+VERSION+' · PARTIAL BANK ROOT FIX';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();
 </script>
+
+
+<!-- ANSSIPASI v2.1.11: BOARD SWITCH SHIELD ROUTING FIX.
+     Historical v2.1.06/v2.1.08 pointerdown guards exposed boardSessionGate too early,
+     causing the following click to land on the overlay instead of JUMBO/PARTIAL.
+     Keep an inert visual shield during pointerdown, then let the proven v2.1.04
+     click controller receive the real board button and paint J001/P001 correctly. -->
+<style>
+#boardSwitchShield211{position:fixed;inset:0;z-index:1599;display:none;background:rgba(255,245,249,.88);backdrop-filter:blur(10px);pointer-events:none}
+</style>
+<div id="boardSwitchShield211"></div>
+<script>
+(()=>{
+  const VERSION='v2.1.11';
+  const gate=document.getElementById('boardSessionGate');
+  const shield=document.getElementById('boardSwitchShield211');
+  const board=document.getElementById('board');
+
+  /* This listener is registered after the historical pointerdown guards, so it
+     closes the real gate again before the browser paints. The inert shield
+     prevents any board-transition flash without stealing the later click. */
+  document.addEventListener('pointerdown',ev=>{
+    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
+    if(!btn)return;
+    if(gate) gate.style.display='none';
+    if(shield) shield.style.display='block';
+    if(btn.id==='partialBtn' && board) board.style.visibility='hidden';
+    if(btn.id==='jumboBtn' && board) board.style.visibility='';
+  },true);
+
+  /* The earlier v2.1.04 document-click handler now receives the actual button,
+     sets pendingButton, paints J001/P001 metadata and displays boardSessionGate.
+     Remove only the inert shield afterwards. */
+  document.addEventListener('click',ev=>{
+    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
+    if(!btn)return;
+    if(shield) shield.style.display='none';
+    if(gate) gate.style.display='flex';
+  },true);
+
+  document.addEventListener('pointercancel',()=>{if(shield)shield.style.display='none'},true);
+
+  document.title='ANSSIPASI '+VERSION+' · BOARD ROUTING FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
