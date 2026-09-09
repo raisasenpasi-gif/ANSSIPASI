@@ -8057,7 +8057,9 @@ body.partialMode #board::before{
   }
 
   function partialTask(){
-    return PARTIAL_TASKS[partialIndex%PARTIAL_TASKS.length];
+    const t=PARTIAL_TASKS[partialIndex%PARTIAL_TASKS.length];
+    window.__anssipasiPartialTask=t; window.__anssipasiPartialIndex=partialIndex;
+    return t;
   }
 
   function partialMeta(){
@@ -8380,7 +8382,7 @@ body.partialMode #board::before{
 
   /* PARTIAL activation redraws the board and can recreate pieces. Bind them
      immediately afterwards, then once more after layout settles. */
-  window.addEventListener('anssipasi:partial',()=>{
+  window.addEventListener('anssipasi:partial-obsolete-v2129',()=>{
     setTimeout(bindPieceHandlers,0);
     setTimeout(bindPieceHandlers,50);
     setTimeout(bindPieceHandlers,150);
@@ -9491,3 +9493,24 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
+
+<!-- ANSSIPASI v2.1.29 PARTIAL 30-TASK BANK AUTHORITATIVE SYNC -->
+<script>
+(()=>{
+ const VERSION='v2.1.29';
+ const isPartial=()=>document.body.classList.contains('partialMode')||document.getElementById('partialBtn')?.classList.contains('on');
+ function sync(){
+  if(!isPartial())return; const t=window.__anssipasiPartialTask;if(!t)return;
+  const n=document.querySelector('#sideScore .fieldTaskNo');if(n)n.textContent='TASK '+t.id;
+  const m=document.querySelector('#sideScore .v12meta');if(m)m.innerHTML='<b>'+t.difficulty+'</b><br>PIECES '+t.ids.length+'<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET '+fmt(t.target);
+  const tt=document.getElementById('taskTitle'),tm=document.getElementById('taskMeta');if(tt)tt.textContent='TASK '+t.id;
+  if(tm)tm.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>'+t.ids.length+' PIECES<br>'+t.difficulty+'<br>TARGET TIME '+fmt(t.target)+'<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+ }
+ document.getElementById('partialBtn')?.addEventListener('click',()=>{setTimeout(sync,0);setTimeout(sync,80);setTimeout(sync,220)});
+ const r0=resetRun;resetRun=function(next=false){const r=r0(next);if(isPartial()){setTimeout(sync,0);setTimeout(sync,100)}return r};
+ const s0=showTaskCard;showTaskCard=function(){const r=s0();if(isPartial())setTimeout(sync,0);return r};
+ window.addEventListener('load',()=>setTimeout(sync,300));
+ document.title='ANSSIPASI '+VERSION+' · PARTIAL 30 TASK BANK';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
