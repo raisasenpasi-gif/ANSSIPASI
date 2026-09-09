@@ -9380,3 +9380,108 @@ body .piece.sel.anssiDragging{
   });
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.13 UNIVERSAL DRAG TOP-LAYER + HAPTIC DEBOUNCE
+     Root repair after FULL/JUMBO/PARTIAL stress test:
+     - the actual current drag node is re-lifted on every pointer move, so late
+       render/reparent handlers cannot leave it underneath BOARD/header UI;
+     - drag cleanup is class-only, preserving the game's own final z-index;
+     - duplicate identical haptic pulses inside 180 ms are suppressed.
+     No board/session/task-bank geometry changed. -->
+<style>
+html body .piece.anssiTopDrag,
+html body .piece.sel.anssiTopDrag{
+  z-index:10000!important;
+  pointer-events:auto!important;
+}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.13';
+
+  /* One physical touch should not echo as two identical vibrations when older
+     stacked handlers both request the same haptic feedback. */
+  try{
+    const baseBuzz=buzz;
+    let lastBuzzAt=0,lastBuzzSig='';
+    buzz=function(pattern=18){
+      const now=performance.now();
+      let sig='';
+      try{sig=JSON.stringify(pattern)}catch(_){sig=String(pattern)}
+      if(sig===lastBuzzSig && now-lastBuzzAt<180) return;
+      lastBuzzAt=now;lastBuzzSig=sig;
+      return baseBuzz(pattern);
+    };
+  }catch(_){ }
+
+  let heldId=null;
+
+  function currentPiece(){
+    if(heldId==null) return null;
+    return document.querySelector(`.piece[data-id="${heldId}"]`);
+  }
+  function forceTop(){
+    const p=currentPiece();
+    if(!p)return;
+    /* During a real drag the core normally reparents to body. Re-assert this
+       only when drag is active, then mark the *current* node after any render. */
+    try{
+      if(typeof drag!=='undefined' && drag!=null && p.parentElement!==document.body){
+        document.body.appendChild(p);
+        p.style.position='fixed';
+      }
+    }catch(_){ }
+    p.classList.add('anssiTopDrag');
+  }
+  function clearTop(){
+    document.querySelectorAll('.piece.anssiTopDrag').forEach(p=>p.classList.remove('anssiTopDrag'));
+    heldId=null;
+  }
+
+  /* Wrap the actual global down() used by all three board modes. */
+  try{
+    const baseDown=down;
+    down=function(ev){
+      const id=Number(ev.currentTarget?.dataset?.id);
+      heldId=Number.isFinite(id)?id:null;
+      const out=baseDown(ev);
+      forceTop();
+      queueMicrotask(forceTop);
+      requestAnimationFrame(forceTop);
+      return out;
+    };
+    document.querySelectorAll('.piece').forEach(p=>{p.onpointerdown=down});
+  }catch(_){ }
+
+  /* Late render/reparent code exists in historical layers. Re-lift the current
+     node throughout the gesture instead of trusting a one-time z-index set. */
+  window.addEventListener('pointermove',()=>{
+    try{
+      if(typeof drag!=='undefined' && drag!=null){
+        heldId=drag;
+        forceTop();
+      }
+    }catch(_){ }
+  },true);
+
+  window.addEventListener('pointerup',()=>setTimeout(clearTop,0),true);
+  window.addEventListener('pointercancel',()=>setTimeout(clearTop,0),true);
+  window.addEventListener('blur',clearTop);
+
+  /* Any future piece created by task changes must use the wrapped down(). */
+  const mo=new MutationObserver(()=>{
+    document.querySelectorAll('.piece').forEach(p=>{
+      if(p.onpointerdown!==down) p.onpointerdown=down;
+    });
+    try{
+      if(typeof drag!=='undefined' && drag!=null){heldId=drag;forceTop()}
+    }catch(_){ }
+  });
+  mo.observe(document.body,{childList:true,subtree:true});
+
+  document.title='ANSSIPASI '+VERSION+' · UNIVERSAL DRAG TOP LAYER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
