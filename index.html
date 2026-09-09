@@ -9436,3 +9436,57 @@ body > .piece.sel{
 })();
 </script>
 
+
+
+<!-- ANSSIPASI v2.1.22 SYNTHETIC BOARD CLICK GUARD
+     Android can synthesize click after a piece's 3rd tap. If SHELF removes the
+     piece before that click is dispatched, the click target becomes the BOARD
+     selector underneath. A genuine BOARD click always has its own preceding
+     pointerdown on that same selector; the synthetic click does not. -->
+<script>
+(()=>{
+  const VERSION='v2.1.22';
+  let boardPress={id:null,at:0,pointerId:null};
+
+  function boardIdFromTarget(t){
+    const b=t?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
+    return b?b.id:null;
+  }
+
+  /* Provenance stamp for an intentional BOARD selector press. */
+  window.addEventListener('pointerdown',ev=>{
+    const id=boardIdFromTarget(ev.target);
+    if(!id) return;
+    boardPress={id,at:performance.now(),pointerId:ev.pointerId};
+  },true);
+
+  /* Run after the older v2.1.18 guard. That guard deliberately lets BOARD
+     clicks through; this one decides whether the click really began on BOARD. */
+  window.addEventListener('click',ev=>{
+    const id=boardIdFromTarget(ev.target);
+    if(!id) return;
+    const age=performance.now()-boardPress.at;
+    const genuine=(boardPress.id===id && age>=0 && age<900);
+    boardPress={id:null,at:0,pointerId:null};
+    if(genuine) return;
+
+    /* No BOARD pointerdown preceded this click: it is click-through from a
+       piece gesture. Keep the current game state and do not open a start card. */
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+  },true);
+
+  /* Do not carry provenance across unrelated pointer sequences. */
+  window.addEventListener('pointerdown',ev=>{
+    if(boardIdFromTarget(ev.target)) return;
+    if(performance.now()-boardPress.at>900){
+      boardPress={id:null,at:0,pointerId:null};
+    }
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · SYNTHETIC BOARD CLICK GUARD';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
