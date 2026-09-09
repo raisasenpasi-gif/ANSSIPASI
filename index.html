@@ -1676,7 +1676,7 @@ body.v194Answer #answerModeTag .v179actions button{
  document.title='ANSSIPASI v2.0.7 · JUMBO DEVELOPMENT';
 
  const chooser=document.createElement('div'); chooser.id='modeChooser';
- chooser.innerHTML='<button id="fullBtn" class="on">FULL 6×5</button><button id="jumboBtn">JUMBO 7×7</button>';
+ chooser.innerHTML='<button id="fullBtn" class="on">FULL 6×5</button><button id="jumboBtn">JUMBO 7×7</button><button id="partialBtn">PARTIAL 20</button>';
  bw.appendChild(chooser);
  const credit=document.createElement('div');credit.id='v202Credit';
  credit.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.0.7 JUMBO DEVELOPMENT';
@@ -8699,17 +8699,29 @@ body.partialMode #board::before{
 })();
 </script>
 
-
-
-<!-- ANSSIPASI v2.0.89: PARTIAL integration test on accepted GitHub/no-flash baseline. -->
+<!-- ANSSIPASI v2.0.90: PARTIAL selector is part of the original BOARD chooser from first paint. -->
+<style>
+#modeChooser #partialBtn{display:block!important;visibility:visible!important}
+</style>
 <script>
 (()=>{
-  document.title='ANSSIPASI v2.0.89 · PARTIAL TEST';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-      c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.0.89 PARTIAL TEST';
-    });
-  }));
+  const VERSION='v2.0.90';
+  const CREDIT='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  function ensure(){
+    const chooser=document.getElementById('modeChooser');
+    if(chooser && !document.getElementById('partialBtn')){
+      const b=document.createElement('button');
+      b.id='partialBtn'; b.textContent='PARTIAL 20';
+      chooser.appendChild(b);
+    }
+    document.title='ANSSIPASI '+VERSION+' · PARTIAL SELECTOR TEST';
+    const c=document.getElementById('v202Credit');
+    if(c)c.textContent=CREDIT;
+  }
+  ensure();
+  window.addEventListener('load',()=>{ensure();setTimeout(ensure,120);setTimeout(ensure,500)});
+  document.addEventListener('click',ev=>{
+    if(ev.target?.closest?.('#startTask,#fullBtn,#jumboBtn,#partialBtn')) setTimeout(ensure,120);
+  },true);
 })();
 </script>
-
