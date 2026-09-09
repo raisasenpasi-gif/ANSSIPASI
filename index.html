@@ -2177,7 +2177,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
     document.body.classList.add('dragRecovery');
 
     try{
-      const id = (typeof drag==='number') ? drag : (drag?.id ?? sel);
+      const id = drag?.id ?? sel;
       const e = id!=null ? document.querySelector(`[data-id="${id}"]`) : null;
 
       /* A stale drag must never leave an invisible capture or toolbar behind. */
@@ -2226,7 +2226,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
      the contact mid-drag. */
   window.addEventListener('pointercancel',()=>recoverDrag('pointercancel'),true);
   window.addEventListener('touchcancel',()=>recoverDrag('touchcancel'),true);
-  window.addEventListener('lostpointercapture',()=>recoverDrag('lostcapture'),true);
+  /* v2.1.58: disabled obsolete lostpointercapture drag recovery */
 
   /* If the finger/pointer ends but the game engine somehow missed its own
      release handler, clean the stale state immediately afterwards. */
@@ -2252,7 +2252,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
   /* Orientation/viewport changes can invalidate the drag coordinates. */
   window.addEventListener('orientationchange',()=>recoverDrag('orientation'),true);
   if(window.visualViewport){
-    window.visualViewport.addEventListener('resize',()=>{ if(drag) recoverDrag('viewport-resize'); });
+    /* v2.1.58: disabled viewport-resize drag recovery; Android Chrome may resize during live drag */
   }
 
   /* Watchdog: a drag with no pointer traffic for 1.5 s is almost certainly
@@ -9636,43 +9636,11 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.57 NUMERIC RECOVERY + GHOST CLEANUP -->
+<!-- ANSSIPASI v2.1.58 ANDROID LIVE-DRAG RECOVERY TEST -->
 <script>
 (()=>{
-  const VERSION='v2.1.57';
-
-  function clearFloatingGhosts(){
-    const portal=window.__piecePortal2116||document.getElementById('piecePortal2116');
-    if(!portal) return;
-
-    [...portal.querySelectorAll('.piece')].forEach(e=>{
-      const id=+e.dataset.id;
-      if(!Number.isFinite(id)) return;
-      try{
-        if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
-        else home(id,false);
-      }catch(_){
-        try{home(id,false);}catch(__){}
-      }
-      e.classList.remove('sel');
-      e.style.pointerEvents='';
-      e.style.zIndex='';
-    });
-
-    try{
-      drag=null;
-      pendingPieceDrag=null;
-      sel=null;
-      tools.style.display='none';
-    }catch(_){}
-  }
-
-  window.addEventListener('orientationchange',()=>setTimeout(clearFloatingGhosts,0),true);
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden) clearFloatingGhosts();
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · NUMERIC RECOVERY + GHOST CLEANUP';
+  const VERSION='v2.1.58';
+  document.title='ANSSIPASI '+VERSION+' · LIVE DRAG TEST';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
