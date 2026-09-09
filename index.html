@@ -9369,3 +9369,26 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
   });
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.15 TRUE TOP-LAYER FIX
+     Historical .piece.sel { z-index:140!important } was overriding the core drag
+     inline z-index. Body-level floating pieces now outrank gameplay UI while
+     session/modals remain above them. -->
+<style>
+body > .piece,
+body > .piece.sel{
+  z-index:1450!important;
+}
+#tools{
+  z-index:1500!important;
+}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.15';
+  document.title='ANSSIPASI '+VERSION+' · TRUE TOP-LAYER FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
