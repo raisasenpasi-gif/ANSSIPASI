@@ -8765,3 +8765,44 @@ body.v277TaskActive #modeChooser{
   credits.forEach(c=>new MutationObserver(syncVersion).observe(c,{childList:true,characterData:true,subtree:true}));
 })();
 </script>
+
+<!-- ANSSIPASI v2.0.92: remove obsolete BOARD task lock completely. -->
+<style>
+#modeChooser,#modeChooser *{pointer-events:auto!important}
+#modeChooser{opacity:1!important;filter:none!important}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.0.92';
+  const CREDIT='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  const unlock=()=>{
+    document.body.classList.remove('v277TaskActive');
+    const chooser=document.getElementById('modeChooser');
+    if(chooser){
+      chooser.removeAttribute('aria-disabled');
+      chooser.style.setProperty('pointer-events','auto','important');
+      chooser.querySelectorAll('button').forEach(b=>{
+        b.disabled=false;
+        b.removeAttribute('aria-disabled');
+        b.style.setProperty('pointer-events','auto','important');
+      });
+    }
+    document.title='ANSSIPASI '+VERSION+' · BOARD SELECTOR UNLOCK TEST';
+    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent=CREDIT);
+  };
+  unlock();
+  document.addEventListener('click',ev=>{
+    if(ev.target?.closest?.('#startTask,#fullBtn,#jumboBtn,#partialBtn')){
+      queueMicrotask(unlock);
+      requestAnimationFrame(unlock);
+      setTimeout(unlock,80);
+    }
+  },true);
+  const mo=new MutationObserver(()=>{
+    if(document.body.classList.contains('v277TaskActive')) unlock();
+  });
+  mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+  window.addEventListener('load',()=>{unlock();setTimeout(unlock,120);setTimeout(unlock,500)});
+})();
+</script>
+
