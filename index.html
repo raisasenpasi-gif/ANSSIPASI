@@ -7924,7 +7924,15 @@ body.partialMode #board::before{
   }
 
   function setPartialBoardSize(){
-    /* Same cell size as FULL, 6×5 coordinate envelope. */
+    /* PARTIAL always uses the same cell size as a fresh FULL 6×5 board.
+       Recompute it here on every entry so JUMBO can never leak its smaller
+       scale into PARTIAL. This is the authoritative board-mode geometry. */
+    const w=document.querySelector('#bw');
+    if(w){
+      const mobile=innerWidth<=850;
+      const n=Math.floor(Math.min((w.clientWidth-24)/6,(w.clientHeight-28)/5,mobile?48:58));
+      cell=Math.max(16,n);
+    }
     board.style.width=(6*cell)+'px';
     board.style.height=(5*cell)+'px';
     drawPartial();
@@ -8969,163 +8977,22 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.0.95: lock PARTIAL 20 to the larger FULL-board cell size regardless of previous BOARD mode. -->
+
+
+
+<!-- ANSSIPASI v2.0.97: PARTIAL root geometry fix.
+     PARTIAL now recomputes the accepted FULL 6x5 cell size inside the original
+     setPartialBoardSize() path on every entry. Obsolete v2.0.95/v2.0.96 scale
+     watchdogs removed. FULL/JUMBO behavior otherwise unchanged. -->
 <script>
 (()=>{
-  const VERSION='v2.0.95';
-  const board=document.getElementById('board');
-  const bw=document.getElementById('bw');
-  const partialBtn=document.getElementById('partialBtn');
-  const CELLS=[
-    [1,0],[2,0],[3,0],
-    [1,1],[2,1],[3,1],[4,1],[5,1],
-    [1,2],[2,2],[3,2],[4,2],[5,2],
-    [0,3],[1,3],[2,3],[4,3],[5,3],
-    [4,4],[5,4]
-  ];
-  if(!board||!bw||!partialBtn) return;
-
-  function preferredFullCell(){
-    const mobile=innerWidth<=850;
-    const n=Math.floor(Math.min((bw.clientWidth-24)/6,(bw.clientHeight-28)/5,mobile?48:58));
-    return Math.max(16,n);
-  }
-
-  function activePartial(){
-    return partialBtn.classList.contains('on') || document.documentElement.classList.contains('v294Partial') || document.body.classList.contains('partialMode');
-  }
-
-  function resizePartialVisuals(){
-    if(!activePartial()) return;
-    const target=preferredFullCell();
-    cell=target;
-    board.style.width=(6*target)+'px';
-    board.style.height=(5*target)+'px';
-
-    document.querySelectorAll('#v294PartialOverlay .v294Cell').forEach((d,i)=>{
-      const q=CELLS[i]; if(!q) return;
-      Object.assign(d.style,{left:(q[0]*target)+'px',top:(q[1]*target)+'px',width:target+'px',height:target+'px'});
-    });
-    document.querySelectorAll('#board > .partialCell').forEach((d,i)=>{
-      const q=CELLS[i]; if(!q) return;
-      Object.assign(d.style,{left:(q[0]*target)+'px',top:(q[1]*target)+'px',width:target+'px',height:target+'px'});
-    });
-
-    ids.forEach(id=>{ try{render(id)}catch(_){} });
-    try{arrange()}catch(_){}
-  }
-
-  function settle(){
-    [0,40,100,180,320,520].forEach(ms=>setTimeout(resizePartialVisuals,ms));
-  }
-
-  partialBtn.addEventListener('pointerdown',settle,true);
-  partialBtn.addEventListener('click',settle,true);
-  window.addEventListener('resize',()=>{ if(activePartial()) setTimeout(resizePartialVisuals,100); });
-  window.addEventListener('orientationchange',()=>{ if(activePartial()) setTimeout(resizePartialVisuals,180); });
-
-  document.title='ANSSIPASI '+VERSION+' · PARTIAL SIZE LOCK';
-  const syncVersion=()=>document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-  requestAnimationFrame(()=>requestAnimationFrame(syncVersion));
-  setTimeout(syncVersion,300);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.0.96: authoritative PARTIAL scale lock.
-     Snapshot the accepted FULL cell size before any BOARD mode switch and
-     reapply that exact size whenever PARTIAL becomes active. -->
-<script>
-(()=>{
-  const VERSION='v2.0.96';
-  const board=document.getElementById('board');
-  const partialBtn=document.getElementById('partialBtn');
-  const root=document.documentElement;
-  if(!board||!partialBtn) return;
-
-  const CELLS=[
-    [1,0],[2,0],[3,0],
-    [1,1],[2,1],[3,1],[4,1],[5,1],
-    [1,2],[2,2],[3,2],[4,2],[5,2],
-    [0,3],[1,3],[2,3],[4,3],[5,3],
-    [4,4],[5,4]
-  ];
-
-  // Capture the accepted FULL geometry once, before JUMBO can shrink `cell`.
-  const measured=board.getBoundingClientRect().width/6;
-  const FULL_CELL_LOCK=Math.max(16,Math.round((Number.isFinite(measured)&&measured>20)?measured:cell));
-  let enforcing=false;
-
-  function isPartial(){
-    return partialBtn.classList.contains('on') ||
-      document.body.classList.contains('partialMode') ||
-      root.classList.contains('v294Partial');
-  }
-
-  function enforcePartialScale(){
-    if(enforcing || !isPartial()) return;
-    enforcing=true;
-    try{
-      cell=FULL_CELL_LOCK;
-      board.style.width=(6*FULL_CELL_LOCK)+'px';
-      board.style.height=(5*FULL_CELL_LOCK)+'px';
-
-      // v2.0.94 overlay
-      const ov=document.getElementById('v294PartialOverlay');
-      if(ov){
-        ov.style.width=(6*FULL_CELL_LOCK)+'px';
-        ov.style.height=(5*FULL_CELL_LOCK)+'px';
-        ov.querySelectorAll('.v294Cell').forEach((d,i)=>{
-          const q=CELLS[i]; if(!q) return;
-          Object.assign(d.style,{left:(q[0]*FULL_CELL_LOCK)+'px',top:(q[1]*FULL_CELL_LOCK)+'px',width:FULL_CELL_LOCK+'px',height:FULL_CELL_LOCK+'px'});
-        });
-      }
-
-      // Older PARTIAL cells may still be present underneath the hard overlay.
-      board.querySelectorAll(':scope > .partialCell').forEach((d,i)=>{
-        const q=CELLS[i]; if(!q) return;
-        Object.assign(d.style,{left:(q[0]*FULL_CELL_LOCK)+'px',top:(q[1]*FULL_CELL_LOCK)+'px',width:FULL_CELL_LOCK+'px',height:FULL_CELL_LOCK+'px'});
-      });
-
-      // Re-render pieces at the same authoritative scale.
-      try{ ids.forEach(id=>render(id)); }catch(_){ }
-      try{ arrange(); }catch(_){ }
-    } finally {
-      enforcing=false;
-    }
-  }
-
-  function settle(){
-    // Set the global scale before legacy PARTIAL handlers run, then keep it
-    // authoritative while their delayed layout work finishes.
-    cell=FULL_CELL_LOCK;
-    [0,16,40,80,140,220,340,520,760,1000].forEach(ms=>setTimeout(enforcePartialScale,ms));
-  }
-
-  document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#partialBtn')) settle();
-  },true);
-  document.addEventListener('click',ev=>{
-    if(ev.target?.closest?.('#partialBtn')) settle();
-  },true);
-
-  // Catch late style/layout changes from the historical JUMBO/PARTIAL patches.
-  const mo=new MutationObserver(()=>{
-    if(isPartial()) requestAnimationFrame(enforcePartialScale);
-  });
-  mo.observe(board,{attributes:true,attributeFilter:['style'],childList:true,subtree:true});
-  mo.observe(partialBtn,{attributes:true,attributeFilter:['class']});
-
-  window.addEventListener('resize',()=>{if(isPartial()) setTimeout(enforcePartialScale,80)});
-  window.addEventListener('orientationchange',()=>{if(isPartial()) setTimeout(enforcePartialScale,160)});
-
-  function syncVersion(){
-    document.title='ANSSIPASI '+VERSION+' · PARTIAL AUTHORITATIVE SCALE LOCK';
+  const VERSION='v2.0.97';
+  function sync(){
+    document.title='ANSSIPASI '+VERSION+' · PARTIAL ROOT GEOMETRY FIX';
     document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
       c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
     });
   }
-  syncVersion();
-  [100,300,700,1200].forEach(ms=>setTimeout(syncVersion,ms));
+  sync(); requestAnimationFrame(()=>requestAnimationFrame(sync)); setTimeout(sync,250);
 })();
 </script>
