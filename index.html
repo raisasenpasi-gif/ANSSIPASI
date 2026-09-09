@@ -8912,9 +8912,11 @@ body.partialMode #board > .partialCell{visibility:visible!important}
   /* Listen on document capture so this schedules the correction before the
      older PARTIAL target handler stops propagation on the button itself. */
   document.addEventListener('pointerdown',ev=>{
-    /* v2.1.07: do not pre-render PARTIAL on pointerdown. The board mode must
-       not change before the NUMBER OF TASKS card opens. PARTIAL rendering is
-       allowed only on the later click that actually starts the selected mode. */
+    if(ev.target?.closest?.('#partialBtn')){
+      setTimeout(drawPartial293,0);
+      setTimeout(drawPartial293,40);
+      setTimeout(drawPartial293,120);
+    }
     if(ev.target?.closest?.('#fullBtn,#jumboBtn')){
       setTimeout(restoreNormal293,0);
       setTimeout(restoreNormal293,80);
@@ -8996,9 +8998,7 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     document.getElementById('v294PartialOverlay')?.remove();
   }
   document.addEventListener('pointerdown',ev=>{
-    /* v2.1.07: never switch to PARTIAL during pointerdown. Doing so exposed a
-       one-frame small PARTIAL silhouette while leaving JUMBO. The actual mode
-       switch happens on the start click after the session card selection. */
+    if(ev.target?.closest?.('#partialBtn')) setPartial();
     if(ev.target?.closest?.('#fullBtn,#jumboBtn')) clearPartial();
   },true);
   document.addEventListener('click',ev=>{
@@ -9184,8 +9184,62 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 <script>(()=>{const VERSION='v2.1.05';document.title='ANSSIPASI '+VERSION+' · PARTIAL LARGE BOARD LOCK';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();</script>
 
 
-<!-- ANSSIPASI v2.1.07: PARTIAL POINTERDOWN ROOT FIX.
-     Removed the two historical PARTIAL pre-render actions that changed board
-     geometry during pointerdown. JUMBO remains visible until the session card
-     covers it; PARTIAL is created only after START TASK. -->
-<script>(()=>{const VERSION='v2.1.07';document.title='ANSSIPASI '+VERSION+' · PARTIAL POINTERDOWN ROOT FIX';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();</script>
+<!-- ANSSIPASI v2.1.06: BOARD SWITCH PRE-PAINT SHIELD.
+     On JUMBO/PARTIAL selection the session card is made visible in the same
+     pointer event before the browser can paint transitional board geometry.
+     PARTIAL board is hidden until its accepted large geometry is ready. -->
+<script>
+(()=>{
+  const VERSION='v2.1.06';
+  const gate=document.getElementById('boardSessionGate');
+  const board=document.getElementById('board');
+
+  document.addEventListener('pointerdown',ev=>{
+    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
+    if(!btn)return;
+
+    /* Older PARTIAL listeners run earlier and may rebuild the board immediately.
+       This listener still runs inside the same pointer event, before the browser
+       paints. Cover that transitional geometry with the session card at once. */
+    if(gate) gate.style.display='flex';
+    if(btn.id==='partialBtn' && board) board.style.visibility='hidden';
+  },true);
+
+  /* If the user chooses JUMBO, never leave a PARTIAL visibility lock behind. */
+  document.addEventListener('click',ev=>{
+    if(ev.target?.closest?.('#jumboBtn') && board) board.style.visibility='';
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · BOARD SWITCH PRE-PAINT FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
+
+<!-- ANSSIPASI v2.1.08: EARLIEST BOARD-SWITCH PAINT SHIELD.
+     Uses WINDOW capture so the cover is raised before older DOCUMENT-level
+     PARTIAL/JUMBO pointer handlers can mutate board geometry. No gameplay or
+     session-start logic is changed from the working v2.1.06 baseline. -->
+<script>
+(()=>{
+  const VERSION='v2.1.08';
+  const gate=document.getElementById('boardSessionGate');
+  const board=document.getElementById('board');
+
+  window.addEventListener('pointerdown',ev=>{
+    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
+    if(!btn)return;
+    /* Window capture runs before document capture. Cover the gameplay view
+       before any historical board-switch listener gets a chance to repaint. */
+    if(gate) gate.style.display='flex';
+    if(btn.id==='partialBtn' && board) board.style.visibility='hidden';
+    if(btn.id==='jumboBtn' && board) board.style.visibility='';
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · EARLY BOARD SWITCH SHIELD';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
