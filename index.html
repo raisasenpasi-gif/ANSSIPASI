@@ -200,7 +200,16 @@ function choose(id){
  requestAnimationFrame(positionTools);
 }
 function clear(id){S[id].place=null;rebuildOcc(id)}
-function down(ev){if(paused||solved)return;let id=+ev.currentTarget.dataset.id;ev.currentTarget._tapStart=[ev.clientX,ev.clientY,Date.now()];choose(id);drag=id;document.querySelector("#tools")?.classList.add("dragHidden");let e=ev.currentTarget,r=e.getBoundingClientRect();off=[ev.clientX-r.left,ev.clientY-r.top];if(S[id].place)clear(id);(window.__piecePortal2116||document.body).append(e);e.style.position="fixed";e.style.transform="scale(1)";e.style.zIndex=1000;move(ev);try{e.setPointerCapture(ev.pointerId)}catch(_){/* capture is optional */}}
+function down(ev){
+ if(paused||solved)return;
+ let id=+ev.currentTarget.dataset.id,e=ev.currentTarget,r=e.getBoundingClientRect();
+ e._tapStart=[ev.clientX,ev.clientY,Date.now()];
+ e._tapOrigin={place:S[id].place?{x:S[id].place.x,y:S[id].place.y}:null,inShelf:e.parentElement===shelf,left:r.left,top:r.top};
+ choose(id);drag=id;document.querySelector("#tools")?.classList.add("dragHidden");
+ off=[ev.clientX-r.left,ev.clientY-r.top];if(S[id].place)clear(id);
+ (window.__piecePortal2116||document.body).append(e);e.style.position="fixed";e.style.transform="scale(1)";e.style.zIndex=1000;move(ev);
+ try{e.setPointerCapture(ev.pointerId)}catch(_){/* capture is optional */}
+}
 function move(ev){if(drag==null)return;let e=document.querySelector(`[data-id="${drag}"]`);e.style.left=ev.clientX-off[0]+"px";e.style.top=ev.clientY-off[1]+"px"}
 addEventListener("pointermove",move);
 addEventListener("pointerup",(ev)=>{
@@ -208,12 +217,29 @@ addEventListener("pointerup",(ev)=>{
  const id=drag;
  const pe=document.querySelector(`[data-id="${id}"]`);
  const ts=pe?pe._tapStart:null;
- const wasTap=ts && Math.hypot(ev.clientX-ts[0],ev.clientY-ts[1])<9 && Date.now()-ts[2]<230;
+ const wasTap=!!(ts && Math.hypot(ev.clientX-ts[0],ev.clientY-ts[1])<12 && Date.now()-ts[2]<500);
  try{
-   drop(id);
+   if(wasTap&&!suppressTap){
+     const o=pe?pe._tapOrigin:null;
+     if(pe&&o){
+       if(o.place){
+         S[id].place={x:o.place.x,y:o.place.y};rebuildOcc();board.append(pe);
+         Object.assign(pe.style,{position:"absolute",left:o.place.x*cell+"px",top:o.place.y*cell+"px",transform:"scale(1)",zIndex:5});
+       }else if(o.inShelf){
+         shelf.append(pe);render(id);const sl=S[id].slot;
+         if(sl)Object.assign(pe.style,{position:"absolute",left:sl.x+"px",top:sl.y+"px",transform:`scale(${sl.scale})`,transformOrigin:"top left",zIndex:2});
+       }else{
+         (window.__piecePortal2116||document.body).append(pe);
+         Object.assign(pe.style,{position:"fixed",left:o.left+"px",top:o.top+"px",transform:"scale(1)",zIndex:1000});
+       }
+     }
+     window.__pieceTapPoint2124={x:ev.clientX,y:ev.clientY};
+     gestureTap(id);
+   }else{
+     drop(id);
+   }
  } finally {
    drag=null;
-   if(wasTap&&!suppressTap)gestureTap(id);
    tools.classList.remove("dragHidden");
    requestAnimationFrame(positionTools);
  }
@@ -9436,57 +9462,49 @@ body > .piece.sel{
 })();
 </script>
 
-
-
-<!-- ANSSIPASI v2.1.22 SYNTHETIC BOARD CLICK GUARD
-     Android can synthesize click after a piece's 3rd tap. If SHELF removes the
-     piece before that click is dispatched, the click target becomes the BOARD
-     selector underneath. A genuine BOARD click always has its own preceding
-     pointerdown on that same selector; the synthetic click does not. -->
+<!-- ANSSIPASI v2.1.24 TAP-IS-NOT-DROP ROOT FIX -->
 <script>
 (()=>{
-  const VERSION='v2.1.22';
-  let boardPress={id:null,at:0,pointerId:null};
-
-  function boardIdFromTarget(t){
-    const b=t?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
-    return b?b.id:null;
+  const VERSION='v2.1.24';
+  const TAP_WINDOW=650;
+  let seq={id:null,count:0,last:0,preFlip:null,timer:null};
+  function cloneCells(a){return Array.isArray(a)?a.map(q=>[q[0],q[1]]):null;}
+  function resetSeq(){
+    if(seq.timer)clearTimeout(seq.timer);
+    seq={id:null,count:0,last:0,preFlip:null,timer:null};
+    try{if(typeof tapState!=='undefined'&&tapState?.timer)clearTimeout(tapState.timer);if(typeof tapState!=='undefined')tapState={id:null,count:0,timer:null};}catch(_){}
   }
-
-  /* Provenance stamp for an intentional BOARD selector press. */
-  window.addEventListener('pointerdown',ev=>{
-    const id=boardIdFromTarget(ev.target);
-    if(!id) return;
-    boardPress={id,at:performance.now(),pointerId:ev.pointerId};
-  },true);
-
-  /* Run after the older v2.1.18 guard. That guard deliberately lets BOARD
-     clicks through; this one decides whether the click really began on BOARD. */
-  window.addEventListener('click',ev=>{
-    const id=boardIdFromTarget(ev.target);
-    if(!id) return;
-    const age=performance.now()-boardPress.at;
-    const genuine=(boardPress.id===id && age>=0 && age<900);
-    boardPress={id:null,at:0,pointerId:null};
-    if(genuine) return;
-
-    /* No BOARD pointerdown preceded this click: it is click-through from a
-       piece gesture. Keep the current game state and do not open a start card. */
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-  },true);
-
-  /* Do not carry provenance across unrelated pointer sequences. */
-  window.addEventListener('pointerdown',ev=>{
-    if(boardIdFromTarget(ev.target)) return;
-    if(performance.now()-boardPress.at>900){
-      boardPress={id:null,at:0,pointerId:null};
+  function eatThirdTapClick(){
+    const p=window.__pieceTapPoint2124;if(!p)return;
+    document.getElementById('tapClickEater2124')?.remove();
+    const e=document.createElement('div');e.id='tapClickEater2124';
+    Object.assign(e.style,{position:'fixed',left:(p.x-24)+'px',top:(p.y-24)+'px',width:'48px',height:'48px',zIndex:'199999',pointerEvents:'auto',background:'transparent',touchAction:'none'});
+    const kill=()=>{try{e.remove()}catch(_){}};
+    e.addEventListener('click',ev=>{ev.preventDefault();ev.stopImmediatePropagation();kill();},true);
+    document.body.append(e);setTimeout(kill,320);
+  }
+  gestureTap=function(id){
+    if(paused||solved||id==null||!S[id])return;
+    const now=performance.now();
+    if(seq.id!==id||now-seq.last>TAP_WINDOW){resetSeq();seq.id=id;seq.count=1;seq.last=now;choose(id);}
+    else{
+      seq.count++;seq.last=now;
+      if(seq.count===2){
+        choose(id);seq.preFlip=cloneCells(S[id].c);transform('f');moves+=.5;
+        const ml=document.getElementById('moves');if(ml)ml.textContent=moves;try{buzz([10,25,10]);}catch(_){}
+      }else if(seq.count>=3){
+        if(seq.preFlip&&S[id])S[id].c=cloneCells(seq.preFlip);
+        eatThirdTapClick();choose(id);home(id,false);moves+=.5;
+        const ml=document.getElementById('moves');if(ml)ml.textContent=moves;
+        if(info)info.innerHTML='<b>↩ SHELF · 3 TAPS</b><br>Shortcut.';try{buzz([10,25,10]);}catch(_){}
+        resetSeq();return;
+      }
     }
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · SYNTHETIC BOARD CLICK GUARD';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
+    if(seq.timer)clearTimeout(seq.timer);seq.timer=setTimeout(resetSeq,TAP_WINDOW+50);
+  };
+  window.addEventListener('pointerdown',ev=>{if(!ev.target?.closest?.('.piece'))resetSeq();},true);
+  document.title='ANSSIPASI '+VERSION+' · TAP IS NOT DROP';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;});
 })();
 </script>
+
