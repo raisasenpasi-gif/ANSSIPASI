@@ -9338,3 +9338,45 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
   });
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.12 ALL-BOARDS DRAG LAYER FIX
+     One shared drag-layer rule for FULL, JUMBO and PARTIAL.
+     A piece being held stays above gameplay banners/BOARD selector, while
+     modal cards remain above pieces. No board/session/geometry logic changed. -->
+<style>
+body .piece.anssiDragging,
+body .piece.sel.anssiDragging{
+  z-index:1000!important;
+  isolation:isolate;
+}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.12';
+  let held=null;
+
+  function lift(ev){
+    const p=ev.target?.closest?.('.piece');
+    if(!p)return;
+    if(held && held!==p) held.classList.remove('anssiDragging');
+    held=p;
+    p.classList.add('anssiDragging');
+  }
+  function release(){
+    if(!held)return;
+    held.classList.remove('anssiDragging');
+    held=null;
+  }
+
+  /* Capture observes only; it never cancels or reroutes the game's own drag. */
+  document.addEventListener('pointerdown',lift,true);
+  document.addEventListener('pointerup',release,true);
+  document.addEventListener('pointercancel',release,true);
+  window.addEventListener('blur',release);
+
+  document.title='ANSSIPASI '+VERSION+' · ALL BOARDS DRAG LAYER FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
