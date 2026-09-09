@@ -192,7 +192,7 @@ function choose(id){
  requestAnimationFrame(positionTools);
 }
 function clear(id){S[id].place=null;rebuildOcc(id)}
-function down(ev){if(paused||solved)return;let id=+ev.currentTarget.dataset.id;ev.currentTarget._tapStart=[ev.clientX,ev.clientY,Date.now()];choose(id);drag=id;document.querySelector("#tools")?.classList.add("dragHidden");let e=ev.currentTarget,r=e.getBoundingClientRect();off=[ev.clientX-r.left,ev.clientY-r.top];if(S[id].place)clear(id);document.body.append(e);e.style.position="fixed";e.style.transform="scale(1)";e.style.zIndex=50;move(ev);try{e.setPointerCapture(ev.pointerId)}catch(_){/* capture is optional */}}
+function down(ev){if(paused||solved)return;let id=+ev.currentTarget.dataset.id;ev.currentTarget._tapStart=[ev.clientX,ev.clientY,Date.now()];choose(id);drag=id;document.querySelector("#tools")?.classList.add("dragHidden");let e=ev.currentTarget,r=e.getBoundingClientRect();off=[ev.clientX-r.left,ev.clientY-r.top];if(S[id].place)clear(id);document.body.append(e);e.style.position="fixed";e.style.transform="scale(1)";e.style.zIndex=1000;move(ev);try{e.setPointerCapture(ev.pointerId)}catch(_){/* capture is optional */}}
 function move(ev){if(drag==null)return;let e=document.querySelector(`[data-id="${drag}"]`);e.style.left=ev.clientX-off[0]+"px";e.style.top=ev.clientY-off[1]+"px"}
 addEventListener("pointermove",move);
 addEventListener("pointerup",(ev)=>{
@@ -287,7 +287,7 @@ function home(id,msg){
    // Invalid landing is only a preview failure: keep the piece lifted/floating.
    clear(id);
    document.body.append(e);
-   Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:50});
+   Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:1000});
    buzz([12,35,12]);
    info.innerHTML="<b>⚠ CAN’T DROP PIECE HERE</b><br>Release was invalid. Piece stays lifted; move, rotate or flip it. Cost 0.";
  }
@@ -298,11 +298,11 @@ function transform(kind){
  // Once transformed, the piece is "in hand": it may temporarily overlap anything.
  if(S[id].place)clear(id);
  document.body.append(e);
- Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:50});
+ Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:1000});
  S[id].c=kind=="r"?norm(S[id].c.map(q=>[-q[1],q[0]])):kind=="l"?norm(S[id].c.map(q=>[q[1],-q[0]])):norm(S[id].c.map(q=>[-q[0],q[1]]));
  render(id);
  e=document.querySelector(`[data-id="${id}"]`);
- Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:50});
+ Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:1000});
  choose(id);requestAnimationFrame(positionTools);
  info.innerHTML=kind=="f"?"<b>⇋ FLIP</b><br>Piece is lifted. Temporary overlap is allowed until DROP.":"<b>↻ ROTATE</b><br>Piece is lifted. Temporary overlap is allowed until DROP.";
 }
@@ -9339,68 +9339,18 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.12 ALL-BOARDS DRAG LAYER FIX
-     One shared drag-layer rule for FULL, JUMBO and PARTIAL.
-     A piece being held stays above gameplay banners/BOARD selector, while
-     modal cards remain above pieces. No board/session/geometry logic changed. -->
+
+<!-- ANSSIPASI v2.1.14 ROOT FLOATING-PIECE LAYER FIX
+     Core drag/invalid-drop/transform paths now use z-index 1000 directly.
+     This avoids dependence on late CSS classes or MutationObserver rebinding.
+     Gameplay controls sit at 1200; modal/session cards remain above at 1600+.
+     Haptic duplicate suppression from v2.1.13 is retained. -->
 <style>
-body .piece.anssiDragging,
-body .piece.sel.anssiDragging{
-  z-index:1000!important;
-  isolation:isolate;
-}
+#tools{z-index:1200!important}
 </style>
 <script>
 (()=>{
-  const VERSION='v2.1.12';
-  let held=null;
-
-  function lift(ev){
-    const p=ev.target?.closest?.('.piece');
-    if(!p)return;
-    if(held && held!==p) held.classList.remove('anssiDragging');
-    held=p;
-    p.classList.add('anssiDragging');
-  }
-  function release(){
-    if(!held)return;
-    held.classList.remove('anssiDragging');
-    held=null;
-  }
-
-  /* Capture observes only; it never cancels or reroutes the game's own drag. */
-  document.addEventListener('pointerdown',lift,true);
-  document.addEventListener('pointerup',release,true);
-  document.addEventListener('pointercancel',release,true);
-  window.addEventListener('blur',release);
-
-  document.title='ANSSIPASI '+VERSION+' · ALL BOARDS DRAG LAYER FIX';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
-})();
-</script>
-
-<!-- ANSSIPASI v2.1.13 UNIVERSAL DRAG TOP-LAYER + HAPTIC DEBOUNCE
-     Root repair after FULL/JUMBO/PARTIAL stress test:
-     - the actual current drag node is re-lifted on every pointer move, so late
-       render/reparent handlers cannot leave it underneath BOARD/header UI;
-     - drag cleanup is class-only, preserving the game's own final z-index;
-     - duplicate identical haptic pulses inside 180 ms are suppressed.
-     No board/session/task-bank geometry changed. -->
-<style>
-html body .piece.anssiTopDrag,
-html body .piece.sel.anssiTopDrag{
-  z-index:10000!important;
-  pointer-events:auto!important;
-}
-</style>
-<script>
-(()=>{
-  const VERSION='v2.1.13';
-
-  /* One physical touch should not echo as two identical vibrations when older
-     stacked handlers both request the same haptic feedback. */
+  const VERSION='v2.1.14';
   try{
     const baseBuzz=buzz;
     let lastBuzzAt=0,lastBuzzSig='';
@@ -9413,73 +9363,7 @@ html body .piece.sel.anssiTopDrag{
       return baseBuzz(pattern);
     };
   }catch(_){ }
-
-  let heldId=null;
-
-  function currentPiece(){
-    if(heldId==null) return null;
-    return document.querySelector(`.piece[data-id="${heldId}"]`);
-  }
-  function forceTop(){
-    const p=currentPiece();
-    if(!p)return;
-    /* During a real drag the core normally reparents to body. Re-assert this
-       only when drag is active, then mark the *current* node after any render. */
-    try{
-      if(typeof drag!=='undefined' && drag!=null && p.parentElement!==document.body){
-        document.body.appendChild(p);
-        p.style.position='fixed';
-      }
-    }catch(_){ }
-    p.classList.add('anssiTopDrag');
-  }
-  function clearTop(){
-    document.querySelectorAll('.piece.anssiTopDrag').forEach(p=>p.classList.remove('anssiTopDrag'));
-    heldId=null;
-  }
-
-  /* Wrap the actual global down() used by all three board modes. */
-  try{
-    const baseDown=down;
-    down=function(ev){
-      const id=Number(ev.currentTarget?.dataset?.id);
-      heldId=Number.isFinite(id)?id:null;
-      const out=baseDown(ev);
-      forceTop();
-      queueMicrotask(forceTop);
-      requestAnimationFrame(forceTop);
-      return out;
-    };
-    document.querySelectorAll('.piece').forEach(p=>{p.onpointerdown=down});
-  }catch(_){ }
-
-  /* Late render/reparent code exists in historical layers. Re-lift the current
-     node throughout the gesture instead of trusting a one-time z-index set. */
-  window.addEventListener('pointermove',()=>{
-    try{
-      if(typeof drag!=='undefined' && drag!=null){
-        heldId=drag;
-        forceTop();
-      }
-    }catch(_){ }
-  },true);
-
-  window.addEventListener('pointerup',()=>setTimeout(clearTop,0),true);
-  window.addEventListener('pointercancel',()=>setTimeout(clearTop,0),true);
-  window.addEventListener('blur',clearTop);
-
-  /* Any future piece created by task changes must use the wrapped down(). */
-  const mo=new MutationObserver(()=>{
-    document.querySelectorAll('.piece').forEach(p=>{
-      if(p.onpointerdown!==down) p.onpointerdown=down;
-    });
-    try{
-      if(typeof drag!=='undefined' && drag!=null){heldId=drag;forceTop()}
-    }catch(_){ }
-  });
-  mo.observe(document.body,{childList:true,subtree:true});
-
-  document.title='ANSSIPASI '+VERSION+' · UNIVERSAL DRAG TOP LAYER';
+  document.title='ANSSIPASI '+VERSION+' · ROOT FLOATING PIECE LAYER FIX';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
   });
