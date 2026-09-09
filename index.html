@@ -8058,7 +8058,7 @@ body.partialMode #board::before{
 
   function partialTask(){
     const t=PARTIAL_TASKS[partialIndex%PARTIAL_TASKS.length];
-    window.__anssipasiPartialTask=t; window.__anssipasiPartialIndex=partialIndex;
+    window.__anssipasiPartialTask=t;
     return t;
   }
 
@@ -8382,7 +8382,7 @@ body.partialMode #board::before{
 
   /* PARTIAL activation redraws the board and can recreate pieces. Bind them
      immediately afterwards, then once more after layout settles. */
-  window.addEventListener('anssipasi:partial-obsolete-v2129',()=>{
+  window.addEventListener('anssipasi:partial',()=>{
     setTimeout(bindPieceHandlers,0);
     setTimeout(bindPieceHandlers,50);
     setTimeout(bindPieceHandlers,150);
@@ -8447,13 +8447,13 @@ body.partialMode #board::before{
   ];
   const PARTIAL_SET=new Set(PARTIAL_CELLS.map(([x,y])=>`${x},${y}`));
 
-  /* A verified 20-square solvable CLASSIC-16 test set for the locked target. */
-  const PARTIAL_IDS=[2,5,9,12];
+  /* Use the authoritative P001-P030 bank selected by the earlier PARTIAL engine. */
+  const currentPartialIds=()=>[...(window.__anssipasiPartialTask?.ids||[1,2,9,10,12])];
 
   const isPartial=()=>document.body.classList.contains('partialMode');
 
   function rebuildPartialPieces(){
-    ids=[...PARTIAL_IDS];
+    ids=currentPartialIds();
     S={};
     document.querySelectorAll('.piece').forEach(e=>e.remove());
     ids.forEach(id=>{
@@ -8475,8 +8475,11 @@ body.partialMode #board::before{
       solved=false;
       paused=false;
       rebuildPartialPieces();
+      const t=window.__anssipasiPartialTask;
+      const taskNo=document.querySelector('#sideScore .fieldTaskNo');
+      if(taskNo&&t)taskNo.textContent='TASK '+t.id;
       const meta=document.querySelector('#sideScore .v12meta');
-      if(meta)meta.innerHTML='<div class="fieldTaskNo">TASK P001</div><b>PARTIAL TEST</b><br>PIECES 4<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET 05:00';
+      if(meta&&t)meta.innerHTML='<b>'+t.difficulty+'</b><br>PIECES '+t.ids.length+'<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET '+fmt(t.target);
       const scoreLive=document.getElementById('scoreLive');
       if(scoreLive)scoreLive.textContent='0';
       score=0;moves=0;t0=Date.now();totalPaused=0;
@@ -8986,10 +8989,11 @@ body.partialMode #board > .partialCell{visibility:visible!important}
     });
 
     /* Keep the right-hand metadata aligned with the active PARTIAL test task. */
+    const t=window.__anssipasiPartialTask;
     const taskNo=document.querySelector('#sideScore .fieldTaskNo');
-    if(taskNo) taskNo.textContent='TASK P001';
+    if(taskNo&&t) taskNo.textContent='TASK '+t.id;
     const meta=document.querySelector('#sideScore .v12meta');
-    if(meta) meta.innerHTML='<b>EASY ★</b><br>PIECES 4<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET 05:00';
+    if(meta&&t) meta.innerHTML='<b>'+t.difficulty+'</b><br>PIECES '+t.ids.length+'<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET '+fmt(t.target);
   }
 
   function restoreNormal293(){
@@ -9494,23 +9498,10 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 </script>
 
 
-<!-- ANSSIPASI v2.1.29 PARTIAL 30-TASK BANK AUTHORITATIVE SYNC -->
+<!-- ANSSIPASI v2.1.30 SAFE PARTIAL BANK INTEGRATION -->
 <script>
 (()=>{
- const VERSION='v2.1.29';
- const isPartial=()=>document.body.classList.contains('partialMode')||document.getElementById('partialBtn')?.classList.contains('on');
- function sync(){
-  if(!isPartial())return; const t=window.__anssipasiPartialTask;if(!t)return;
-  const n=document.querySelector('#sideScore .fieldTaskNo');if(n)n.textContent='TASK '+t.id;
-  const m=document.querySelector('#sideScore .v12meta');if(m)m.innerHTML='<b>'+t.difficulty+'</b><br>PIECES '+t.ids.length+'<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET '+fmt(t.target);
-  const tt=document.getElementById('taskTitle'),tm=document.getElementById('taskMeta');if(tt)tt.textContent='TASK '+t.id;
-  if(tm)tm.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>'+t.ids.length+' PIECES<br>'+t.difficulty+'<br>TARGET TIME '+fmt(t.target)+'<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
- }
- document.getElementById('partialBtn')?.addEventListener('click',()=>{setTimeout(sync,0);setTimeout(sync,80);setTimeout(sync,220)});
- const r0=resetRun;resetRun=function(next=false){const r=r0(next);if(isPartial()){setTimeout(sync,0);setTimeout(sync,100)}return r};
- const s0=showTaskCard;showTaskCard=function(){const r=s0();if(isPartial())setTimeout(sync,0);return r};
- window.addEventListener('load',()=>setTimeout(sync,300));
- document.title='ANSSIPASI '+VERSION+' · PARTIAL 30 TASK BANK';
- document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+ document.title='ANSSIPASI v2.1.30 · SAFE PARTIAL BANK';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.30');
 })();
 </script>
