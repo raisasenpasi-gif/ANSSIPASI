@@ -9522,6 +9522,13 @@ body > .piece.sel{
   /* Android may synthesize a click onto whatever becomes exposed under the
      finger after SHELF. Swallow only clicks at the just-used piece coordinate. */
   window.addEventListener('click',ev=>{
+    /* Never swallow intentional gameplay-control clicks. In v2.1.18 a recent
+       piece pointer-up could make the synthetic-click guard eat a BOARD-mode
+       click, leaving the historical boardSwitchShield visible as a blank page. */
+    if(ev.target?.closest?.('#modeChooser,#fullBtn,#jumboBtn,#partialBtn,#startTask,#redoTop,#nextTop,#sessionNew,#nextCorrect,#pause,#tools,header button')){
+      lastPieceUp.until=0;
+      return;
+    }
     if(performance.now()>lastPieceUp.until) return;
     const dx=ev.clientX-lastPieceUp.x, dy=ev.clientY-lastPieceUp.y;
     if(dx*dx+dy*dy<=18*18){
@@ -9532,7 +9539,10 @@ body > .piece.sel{
   },true);
 
   document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#startTask,#redoTop,#nextTop,#sessionNew,#fullBtn,#jumboBtn,#partialBtn,#nextCorrect')) resetSeq();
+    if(ev.target?.closest?.('#startTask,#redoTop,#nextTop,#sessionNew,#fullBtn,#jumboBtn,#partialBtn,#nextCorrect')){
+      lastPieceUp.until=0;
+      resetSeq();
+    }
   },true);
 
   document.title='ANSSIPASI '+VERSION+' · ROBUST TRIPLE TAP FIX';
@@ -9541,3 +9551,4 @@ body > .piece.sel{
   });
 })();
 </script>
+\n\n<!-- ANSSIPASI v2.1.19 BOARD-SWITCH / TAP-STATE ROOT FIX\n     BOARD controls are exempt from post-piece synthetic-click suppression.\n     Any stale triple-tap state is cleared before board switching, and the\n     historical transition shield has a fail-safe auto release so it can never\n     strand the app on a blank pink screen. -->\n<script>\n(()=>{\n  const VERSION='v2.1.19';\n  const shield=document.getElementById('boardSwitchShield211');\n  const gate=document.getElementById('boardSessionGate');\n  let releaseTimer=0;\n  function failSafeRelease(){\n    clearTimeout(releaseTimer);\n    releaseTimer=setTimeout(()=>{\n      if(shield) shield.style.display='none';\n      /* Do not forcibly hide a legitimately open session gate. */\n    },700);\n  }\n  window.addEventListener('pointerdown',ev=>{\n    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')) failSafeRelease();\n  },true);\n  window.addEventListener('pointercancel',()=>{\n    if(shield) shield.style.display='none';\n  },true);\n  window.addEventListener('blur',()=>{\n    if(shield) shield.style.display='none';\n  });\n  document.title='ANSSIPASI '+VERSION+' · BOARD SWITCH TAP STATE FIX';\n  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{\n    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;\n  });\n})();\n</script>\n
