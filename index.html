@@ -9228,123 +9228,12 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 <script>(()=>{const VERSION='v2.1.05';document.title='ANSSIPASI '+VERSION+' · PARTIAL LARGE BOARD LOCK';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();</script>
 
 
-<!-- ANSSIPASI v2.1.06: BOARD SWITCH PRE-PAINT SHIELD.
-     On JUMBO/PARTIAL selection the session card is made visible in the same
-     pointer event before the browser can paint transitional board geometry.
-     PARTIAL board is hidden until its accepted large geometry is ready. -->
-<script>
-(()=>{
-  const VERSION='v2.1.06';
-  const gate=document.getElementById('boardSessionGate');
-  const board=document.getElementById('board');
-
-  document.addEventListener('pointerdown',ev=>{
-    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
-    if(!btn)return;
-
-    /* Older PARTIAL listeners run earlier and may rebuild the board immediately.
-       This listener still runs inside the same pointer event, before the browser
-       paints. Cover that transitional geometry with the session card at once. */
-    if(gate) gate.style.display='flex';
-    if(btn.id==='partialBtn' && board) board.style.visibility='hidden';
-  },true);
-
-  /* If the user chooses JUMBO, never leave a PARTIAL visibility lock behind. */
-  document.addEventListener('click',ev=>{
-    if(ev.target?.closest?.('#jumboBtn') && board) board.style.visibility='';
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · BOARD SWITCH PRE-PAINT FIX';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
-})();
-</script>
-
-<!-- ANSSIPASI v2.1.08: EARLIEST BOARD-SWITCH PAINT SHIELD.
-     Uses WINDOW capture so the cover is raised before older DOCUMENT-level
-     PARTIAL/JUMBO pointer handlers can mutate board geometry. No gameplay or
-     session-start logic is changed from the working v2.1.06 baseline. -->
-<script>
-(()=>{
-  const VERSION='v2.1.08';
-  const gate=document.getElementById('boardSessionGate');
-  const board=document.getElementById('board');
-
-  window.addEventListener('pointerdown',ev=>{
-    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
-    if(!btn)return;
-    /* Window capture runs before document capture. Cover the gameplay view
-       before any historical board-switch listener gets a chance to repaint. */
-    if(gate) gate.style.display='flex';
-    if(btn.id==='partialBtn' && board) board.style.visibility='hidden';
-    if(btn.id==='jumboBtn' && board) board.style.visibility='';
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · EARLY BOARD SWITCH SHIELD';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
-})();
-</script>
-
-
-
-
 <!-- ANSSIPASI v2.1.10: PARTIAL TASK BANK ROOT INTEGRATION.
      30-task bank moved inside the original PARTIAL closure; PARTIAL click no
      longer blocks the session-card controller; piece inventory is rebuilt from
      each active P-task. Accepted v2.1.08 paint shield and geometry retained. -->
 <script>
 (()=>{const VERSION='v2.1.10';document.title='ANSSIPASI '+VERSION+' · PARTIAL BANK ROOT FIX';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.11: BOARD SWITCH SHIELD ROUTING FIX.
-     Historical v2.1.06/v2.1.08 pointerdown guards exposed boardSessionGate too early,
-     causing the following click to land on the overlay instead of JUMBO/PARTIAL.
-     Keep an inert visual shield during pointerdown, then let the proven v2.1.04
-     click controller receive the real board button and paint J001/P001 correctly. -->
-<style>
-#boardSwitchShield211{position:fixed;inset:0;z-index:1599;display:none;background:rgba(255,245,249,.88);backdrop-filter:blur(10px);pointer-events:none}
-</style>
-<div id="boardSwitchShield211"></div>
-<script>
-(()=>{
-  const VERSION='v2.1.11';
-  const gate=document.getElementById('boardSessionGate');
-  const shield=document.getElementById('boardSwitchShield211');
-  const board=document.getElementById('board');
-
-  /* This listener is registered after the historical pointerdown guards, so it
-     closes the real gate again before the browser paints. The inert shield
-     prevents any board-transition flash without stealing the later click. */
-  document.addEventListener('pointerdown',ev=>{
-    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
-    if(!btn)return;
-    if(gate) gate.style.display='none';
-    if(shield) shield.style.display='block';
-    if(btn.id==='partialBtn' && board) board.style.visibility='hidden';
-    if(btn.id==='jumboBtn' && board) board.style.visibility='';
-  },true);
-
-  /* The earlier v2.1.04 document-click handler now receives the actual button,
-     sets pendingButton, paints J001/P001 metadata and displays boardSessionGate.
-     Remove only the inert shield afterwards. */
-  document.addEventListener('click',ev=>{
-    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
-    if(!btn)return;
-    if(shield) shield.style.display='none';
-    if(gate) gate.style.display='flex';
-  },true);
-
-  document.addEventListener('pointercancel',()=>{if(shield)shield.style.display='none'},true);
-
-  document.title='ANSSIPASI '+VERSION+' · BOARD ROUTING FIX';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
-})();
 </script>
 
 
@@ -9551,4 +9440,43 @@ body > .piece.sel{
   });
 })();
 </script>
-\n\n<!-- ANSSIPASI v2.1.19 BOARD-SWITCH / TAP-STATE ROOT FIX\n     BOARD controls are exempt from post-piece synthetic-click suppression.\n     Any stale triple-tap state is cleared before board switching, and the\n     historical transition shield has a fail-safe auto release so it can never\n     strand the app on a blank pink screen. -->\n<script>\n(()=>{\n  const VERSION='v2.1.19';\n  const shield=document.getElementById('boardSwitchShield211');\n  const gate=document.getElementById('boardSessionGate');\n  let releaseTimer=0;\n  function failSafeRelease(){\n    clearTimeout(releaseTimer);\n    releaseTimer=setTimeout(()=>{\n      if(shield) shield.style.display='none';\n      /* Do not forcibly hide a legitimately open session gate. */\n    },700);\n  }\n  window.addEventListener('pointerdown',ev=>{\n    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')) failSafeRelease();\n  },true);\n  window.addEventListener('pointercancel',()=>{\n    if(shield) shield.style.display='none';\n  },true);\n  window.addEventListener('blur',()=>{\n    if(shield) shield.style.display='none';\n  });\n  document.title='ANSSIPASI '+VERSION+' · BOARD SWITCH TAP STATE FIX';\n  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{\n    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;\n  });\n})();\n</script>\n
+<!-- ANSSIPASI v2.1.20 CLEAN BOARD-SWITCH TRANSITION GUARD
+     Removes historical pre-open/shield handlers that could strand the app on a
+     blank pink screen. The board is only hidden during pointerdown to prevent
+     transitional repaint; the proven boardSessionGate click controller remains
+     authoritative for JUMBO/PARTIAL routing. -->
+<style>
+body.v2120Switching #board{visibility:hidden!important}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.20';
+  let guardTimer=0;
+  function clearGuard(){
+    clearTimeout(guardTimer);
+    document.body.classList.remove('v2120Switching');
+  }
+  window.addEventListener('pointerdown',ev=>{
+    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
+    if(!btn)return;
+    document.body.classList.add('v2120Switching');
+    clearTimeout(guardTimer);
+    guardTimer=setTimeout(clearGuard,900);
+  },true);
+
+  /* Once the session gate is visibly open, there is no longer any chance of a
+     board repaint being seen, so release the temporary board visibility guard. */
+  document.addEventListener('click',ev=>{
+    if(!ev.target?.closest?.('#jumboBtn,#partialBtn')) return;
+    requestAnimationFrame(()=>requestAnimationFrame(clearGuard));
+  },true);
+
+  window.addEventListener('pointercancel',clearGuard,true);
+  window.addEventListener('blur',clearGuard);
+
+  document.title='ANSSIPASI '+VERSION+' · CLEAN BOARD SWITCH';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
