@@ -9054,3 +9054,85 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
   sync();requestAnimationFrame(()=>requestAnimationFrame(sync));setTimeout(sync,350);
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.02 AUTHORITATIVE BOARD SESSION GATE -->
+<style>
+#boardSessionGate{position:fixed;inset:0;z-index:1600;display:none;align-items:center;justify-content:center;background:rgba(255,245,249,.84);backdrop-filter:blur(10px)}
+#boardSessionGate .bsgCard{background:#fff;border:2px solid #efb8ce;border-radius:24px;padding:20px 26px;text-align:center;box-shadow:0 18px 50px #8b466044;min-width:300px}
+#boardSessionGate .bsgBoard{font-size:12px;font-weight:900;color:#e43f7f;margin-bottom:8px;letter-spacing:.2px}
+#boardSessionGate .bsgTitle{font-size:19px;font-weight:900;color:#5c3b49;margin-bottom:13px}
+#boardSessionGate .bsgButtons{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
+#boardSessionGate .bsgButtons button{min-width:52px;padding:9px 11px!important;background:#f3c4d7;color:#5c3b49;font-weight:900}
+#boardSessionGate .bsgCancel{margin-top:12px!important;background:#eee!important;color:#5c3b49!important}
+@media(max-width:850px){#boardSessionGate .bsgCard{min-width:270px;padding:15px 18px}#boardSessionGate .bsgTitle{font-size:16px;margin-bottom:9px}#boardSessionGate .bsgButtons button{font-size:9px!important;min-width:44px;padding:7px 8px!important}}
+</style>
+<div id="boardSessionGate"><div class="bsgCard">
+  <div class="bsgBoard" id="bsgBoardName">JUMBO 7×7</div>
+  <div class="bsgTitle">NUMBER OF TASKS</div>
+  <div class="bsgButtons">
+    <button data-bsg-count="1">1</button><button data-bsg-count="5">5</button><button data-bsg-count="10">10</button><button data-bsg-count="25">25</button><button data-bsg-count="forever">4EVER</button>
+  </div>
+  <button class="bsgCancel" id="bsgCancel">CANCEL</button>
+</div></div>
+<script>
+(()=>{
+  const VERSION='v2.1.02';
+  const gate=document.getElementById('boardSessionGate');
+  const gateName=document.getElementById('bsgBoardName');
+  let pendingButton=null;
+  let bypass=false;
+
+  function openGate(btn){
+    pendingButton=btn;
+    gateName.textContent=btn.id==='jumboBtn'?'JUMBO 7×7':'PARTIAL 20';
+    gate.style.display='flex';
+    try{paused=true;}catch(_){}
+  }
+  function closeGate(){ gate.style.display='none'; pendingButton=null; }
+
+  /* Authoritative interception: JUMBO/PARTIAL cannot start until a session
+     length has been chosen. FULL remains untouched. */
+  document.addEventListener('click',ev=>{
+    if(bypass)return;
+    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
+    if(!btn)return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    openGate(btn);
+  },true);
+
+  document.querySelectorAll('[data-bsg-count]').forEach(choice=>choice.addEventListener('click',ev=>{
+    ev.preventDefault();ev.stopPropagation();
+    const btn=pendingButton;
+    if(!btn)return;
+    const count=choice.dataset.bsgCount;
+    gate.style.display='none';
+
+    /* Let the board's proven original handler run exactly once. */
+    bypass=true;
+    try{btn.click();}finally{bypass=false;}
+
+    /* Feed the selection into the existing v2.0.21 session engine. */
+    setTimeout(()=>{
+      const oldChoice=document.querySelector('#taskCountChooser [data-count="'+count+'"]');
+      if(oldChoice) oldChoice.click();
+      /* PARTIAL's board handler does not natively call showTaskCard. Ensure its
+         task card is visible after the existing session state has been set. */
+      if(btn.id==='partialBtn'){
+        const card=document.getElementById('taskCard');
+        if(card) card.style.display='flex';
+      }
+    },0);
+  }));
+
+  document.getElementById('bsgCancel')?.addEventListener('click',ev=>{
+    ev.preventDefault();ev.stopPropagation();closeGate();
+  });
+
+  document.title='ANSSIPASI '+VERSION+' · BOARD SESSION GATE';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
+
