@@ -4168,6 +4168,47 @@ body.v215Answer #v215AnswerPanel button{
     }
   }
 
+
+  /* v2.1.01 ROOT BOARD-SESSION FIX.
+     A board change is a new session decision. Reset the real session state
+     inside this closure BEFORE the board's own click handler runs. This is
+     especially important for PARTIAL, whose target handler stops propagation. */
+  function resetSessionForBoardChoice(){
+    sessionConfigured=false;
+    sessionTarget=5;
+    sessionPos=1;
+    sessionEnded=false;
+    paused=true;
+  }
+
+  document.addEventListener('click',ev=>{
+    const jumboChoice=ev.target?.closest?.('#jumboBtn');
+    const partialChoice=ev.target?.closest?.('#partialBtn');
+    if(!jumboChoice && !partialChoice)return;
+
+    resetSessionForBoardChoice();
+
+    /* JUMBO's own handler calls showTaskCard(), which now sees the reset state
+       and therefore paints NUMBER OF TASKS automatically. PARTIAL does not
+       open a task card itself, so paint its card immediately after its board
+       handler has finished. */
+    if(partialChoice){
+      setTimeout(()=>{
+        if(taskCardEl){
+          taskCardEl.style.display='flex';
+          taskCardPauseAt=Date.now();
+        }
+        const tt=document.getElementById('taskTitle');
+        const tm=document.getElementById('taskMeta');
+        if(tt)tt.textContent='TASK P001';
+        if(tm)tm.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+        decorateTaskCard();
+      },0);
+    }else{
+      setTimeout(decorateTaskCard,0);
+    }
+  },true);
+
   /* Every existing FULL/JUMBO task-card flow now receives the same selector
      without replacing the older task metadata, targets or PERFECT logic. */
   const showBeforeV221=showTaskCard;
@@ -4649,7 +4690,7 @@ body.v215Answer #v215AnswerPanel button{
   });
 
   // Every new board choice starts at the session-length chooser instead of silently reusing the previous count.
-  ['fullBtn','jumboBtn'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>{
+  ['fullBtn','jumboBtn','partialBtn'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>{
     setTimeout(()=>{
       const chooser=document.getElementById('taskCountChooser');
       if(chooser && getComputedStyle(chooser).display==='none') document.getElementById('sessionNew')?.click();
@@ -8997,96 +9038,19 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.00: board-specific NUMBER OF TASKS chooser root fix.
-     Uses dynamic DOM lookup so JUMBO/PARTIAL receive the same chooser as FULL
-     even when the chooser is created after this patch loads. Board geometry unchanged. -->
+<!-- ANSSIPASI v2.1.01: SESSION CHOOSER CORE FIX.
+     JUMBO/PARTIAL board changes now reset sessionConfigured inside the original
+     NUMBER OF TASKS closure before board handlers run. PARTIAL opens the same
+     chooser card explicitly. PARTIAL geometry and startup behavior unchanged. -->
 <script>
 (()=>{
-  const VERSION='v2.1.00';
-  let armedMode=null;
-  let raf=0;
-
-  const $=id=>document.getElementById(id);
-
-  function modeMeta(mode){
-    const title=$('taskTitle'), meta=$('taskMeta');
-    if(mode==='partial'){
-      if(title) title.textContent='TASK P001';
-      if(meta) meta.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
-    }else if(mode==='jumbo'){
-      if(title && !/^TASK J/i.test(title.textContent||'')) title.textContent='TASK J001';
-      if(meta && !/JUMBO BOARD/i.test(meta.innerHTML||''))
-        meta.innerHTML='JUMBO BOARD · 49 SQUARES<br>MASTER 20<br>10 PIECES<br>EASY ★<br>TARGET TIME 08:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
-    }
-  }
-
-  function forceChooser(){
-    if(!armedMode) return;
-    const card=$('taskCard');
-    const chooser=$('taskCountChooser');
-    const progress=$('sessionProgressCard');
-    const start=$('startTask');
-
-    /* The legacy FULL session code creates taskCountChooser lazily. If it does
-       not exist yet, call the established task-card path once, then retry. */
-    if(!chooser){
-      try{ if(typeof showTaskCard==='function') showTaskCard(); }catch(_){}
-      raf=requestAnimationFrame(forceChooser);
-      return;
-    }
-
-    if(card) card.style.setProperty('display','flex','important');
-    chooser.style.setProperty('display','block','important');
-    chooser.querySelectorAll('[data-count]').forEach(b=>b.classList.remove('on'));
-    if(progress) progress.style.setProperty('display','none','important');
-    if(start) start.disabled=true;
-    modeMeta(armedMode);
-    raf=requestAnimationFrame(forceChooser);
-  }
-
-  function arm(mode){
-    armedMode=mode;
-    cancelAnimationFrame(raf);
-    /* Let the board's own JUMBO/PARTIAL handler finish first. */
-    setTimeout(forceChooser,0);
-  }
-
-  document.addEventListener('click',ev=>{
-    if(ev.target?.closest?.('#jumboBtn')) arm('jumbo');
-    else if(ev.target?.closest?.('#partialBtn')) arm('partial');
-  },true);
-
-  /* The old NUMBER OF TASKS buttons already own the real session variables.
-     Let that listener run, then release our visual hold so its normal
-     decorateTaskCard() state becomes authoritative again. */
-  document.addEventListener('click',ev=>{
-    const count=ev.target?.closest?.('#taskCountChooser [data-count]');
-    if(!count || !armedMode) return;
-    const mode=armedMode;
-    setTimeout(()=>{
-      armedMode=null;
-      cancelAnimationFrame(raf);
-      const chooser=$('taskCountChooser');
-      const progress=$('sessionProgressCard');
-      const start=$('startTask');
-      chooser?.style.removeProperty('display');
-      progress?.style.removeProperty('display');
-      if(start) start.disabled=false;
-      modeMeta(mode);
-      try{ if(typeof decorateTaskCard==='function') decorateTaskCard(); }catch(_){}
-    },0);
-  },false);
-
-  $('startTask')?.addEventListener('click',()=>{
-    armedMode=null; cancelAnimationFrame(raf);
-  },true);
-
+  const VERSION='v2.1.01';
   function sync(){
-    document.title='ANSSIPASI '+VERSION;
+    document.title='ANSSIPASI '+VERSION+' · BOARD SESSION CORE FIX';
     document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
       c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
     });
   }
-  sync(); requestAnimationFrame(()=>requestAnimationFrame(sync)); setTimeout(sync,250);
+  sync();requestAnimationFrame(()=>requestAnimationFrame(sync));setTimeout(sync,350);
 })();
 </script>
