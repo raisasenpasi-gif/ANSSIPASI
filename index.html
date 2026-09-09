@@ -203,7 +203,7 @@ function clear(id){S[id].place=null;rebuildOcc(id)}
 function down(ev){
  if(paused||solved)return;
  const e=ev.currentTarget,id=+e.dataset.id,r=e.getBoundingClientRect();
- /* v2.1.26: a stationary tap must NOT detach, clear or re-parent the piece.
+ /* v2.1.27: a stationary tap must NOT detach, clear or re-parent the piece.
     We only arm a possible drag here. The actual drag starts after the finger
     has moved far enough. This removes the repeated DOM churn that made later
     pieces increasingly sticky and made tap counts unreliable. */
@@ -222,8 +222,13 @@ function beginPendingDrag(ev){
  drag=q.id;off=[q.offX,q.offY];
  document.querySelector('#tools')?.classList.add('dragHidden');
  if(S[q.id].place)clear(q.id);
+ /* v2.1.27: re-parenting a captured element can make Android stop delivering
+    later pointermove events. Release before the portal move and capture again
+    only after the element is in its final drag parent. */
+ try{e.releasePointerCapture(ev.pointerId)}catch(_){}
  (window.__piecePortal2116||document.body).append(e);
  Object.assign(e.style,{position:'fixed',transform:'scale(1)',zIndex:1000});
+ try{e.setPointerCapture(ev.pointerId)}catch(_){}
  pendingPieceDrag=null;
  move(ev);return true;
 }
@@ -9384,7 +9389,7 @@ body > .piece.sel{
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.26 STATIONARY TAP + SINGLE GESTURE OWNER -->
+<!-- ANSSIPASI v2.1.27 STATIONARY TAP + SINGLE GESTURE OWNER -->
 <style>
 /* While a piece tap sequence owns the finger, BOARD choices cannot become the
    target of Android's synthetic post-touch click. */
@@ -9392,7 +9397,7 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 </style>
 <script>
 (()=>{
-  const VERSION='v2.1.26';
+  const VERSION='v2.1.27';
   const TAP_WINDOW=560;
   let seq={id:null,count:0,last:0,preFlip:null,timer:null};
   const clone=a=>Array.isArray(a)?a.map(q=>[q[0],q[1]]):null;
@@ -9460,11 +9465,11 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     },40);
   },false);
 
-  document.title='ANSSIPASI '+VERSION+' · STATIONARY TAP OWNER';
+  document.title='ANSSIPASI '+VERSION+' · POINTER CAPTURE DRAG FIX';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
-<!-- ANSSIPASI v2.1.26 POST-TAP CLICK EATER -->
+<!-- ANSSIPASI v2.1.27 POST-TAP CLICK EATER -->
 <script>
 (()=>{
   let genuineBoardDownUntil=0;
@@ -9482,8 +9487,8 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
       window.__pieceTapPoint2126=null;
     }
   },true);
-  document.title='ANSSIPASI v2.1.26 · STATIONARY TAP OWNER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.26');
+  document.title='ANSSIPASI v2.1.27 · POINTER CAPTURE DRAG FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.27');
 })();
 </script>
 
