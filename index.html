@@ -9496,13 +9496,18 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.52 STABLE SINGLE DRAG -->
+<!-- ANSSIPASI v2.1.53 PARTIAL OWNER + CLICK-THROUGH GUARD -->
 <script>
 (()=>{
-  const VERSION='v2.1.52', THRESHOLD=5;
-  let q=null;
-  const byId=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const VERSION='v2.1.53', THRESHOLD=5;
+  let pq=null, suppressBoardClickUntil=0;
+
   const inside=(x,y,r)=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
+  const byId=id=>document.querySelector(`.piece[data-id="${id}"]`);
+
+  function isPartial(){
+    return document.body.classList.contains('partialMode');
+  }
 
   function modalOpen(){
     return ['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
@@ -9515,88 +9520,82 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
       });
   }
 
-  function shelfHit(x,y){
-    const sh=document.getElementById('shelf');
-    if(!sh||!inside(x,y,sh.getBoundingClientRect()))return null;
-    for(const e of [...sh.querySelectorAll('.piece')].reverse()){
+  function partialPieceAt(x,y){
+    if(!isPartial())return null;
+    const pieces=[...document.querySelectorAll('.piece')].reverse();
+    for(const e of pieces){
+      const id=+e.dataset.id;
+      if(!Number.isFinite(id))continue;
       const r=e.getBoundingClientRect();
-      if(inside(x,y,r))return {id:+e.dataset.id,e,r};
+      if(inside(x,y,r))return {id,e,r};
     }
     return null;
   }
 
   function returnPiece(id){
-    const e=byId(id);
     try{drag=null;pendingPieceDrag=null;}catch(_){}
     try{
       if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
       else home(id,false);
     }catch(_){try{home(id,false);}catch(__){}}
+    const e=byId(id);
     if(e){e.classList.remove('sel');e.style.pointerEvents='';e.style.zIndex='';}
     try{tools.style.display='none';}catch(_){}
   }
 
-  function clearGhosts(except=null){
-    const portal=window.__piecePortal2116||document.getElementById('piecePortal2116');
-    if(!portal)return;
-    [...portal.querySelectorAll('.piece')].forEach(e=>{
-      const id=+e.dataset.id;
-      if(id!==except)returnPiece(id);
-    });
-  }
-
-  function begin(ev){
-    if(!q||q.dragging)return;
-    const id=q.id,e=byId(id);
-    if(!e){q=null;return;}
-
-    /* Critical 2.1.52 change:
-       NEVER normalize the just-selected piece at pickup. */
-    clearGhosts(id);
+  function startPartialDrag(ev){
+    if(!pq||pq.dragging)return;
+    const id=pq.id,e=byId(id);
+    if(!e){pq=null;return;}
 
     try{
       paused=false;solved=false;
       if(S[id]?.place)clear(id);
       choose(id);
       (window.__piecePortal2116||document.body).append(e);
-      drag=id;off=[q.offX,q.offY];pendingPieceDrag=null;
+      drag=id;off=[pq.offX,pq.offY];pendingPieceDrag=null;
     }catch(_){}
 
-    q.dragging=true;
+    pq.dragging=true;
     Object.assign(e.style,{
       position:'fixed',
-      left:(ev.clientX-q.offX)+'px',
-      top:(ev.clientY-q.offY)+'px',
+      left:(ev.clientX-pq.offX)+'px',
+      top:(ev.clientY-pq.offY)+'px',
       transform:'scale(1)',transformOrigin:'top left',
       zIndex:'1000',pointerEvents:'auto'
     });
   }
 
+  /* PARTIAL gets one authoritative pointer owner for BOTH shelf and board pieces. */
   window.addEventListener('pointerdown',ev=>{
-    if(modalOpen())return;
-    const hit=shelfHit(ev.clientX,ev.clientY);
+    if(!isPartial()||modalOpen())return;
+    const hit=partialPieceAt(ev.clientX,ev.clientY);
     if(!hit)return;
 
-    clearGhosts(hit.id);
-    q={id:hit.id,pointerId:ev.pointerId,startX:ev.clientX,startY:ev.clientY,
-       offX:ev.clientX-hit.r.left,offY:ev.clientY-hit.r.top,dragging:false};
+    pq={
+      id:hit.id,pointerId:ev.pointerId,
+      startX:ev.clientX,startY:ev.clientY,
+      offX:ev.clientX-hit.r.left,offY:ev.clientY-hit.r.top,
+      dragging:false
+    };
     try{paused=false;solved=false;choose(hit.id);}catch(_){}
     ev.preventDefault();ev.stopImmediatePropagation();
   },true);
 
   window.addEventListener('pointermove',ev=>{
-    if(!q||ev.pointerId!==q.pointerId)return;
-    if(!q.dragging&&Math.hypot(ev.clientX-q.startX,ev.clientY-q.startY)>=THRESHOLD)begin(ev);
-    if(q?.dragging){
-      const e=byId(q.id);
-      if(e){e.style.left=(ev.clientX-q.offX)+'px';e.style.top=(ev.clientY-q.offY)+'px';}
+    if(!pq||ev.pointerId!==pq.pointerId)return;
+    if(!pq.dragging&&Math.hypot(ev.clientX-pq.startX,ev.clientY-pq.startY)>=THRESHOLD)
+      startPartialDrag(ev);
+    if(pq?.dragging){
+      const e=byId(pq.id);
+      if(e){e.style.left=(ev.clientX-pq.offX)+'px';e.style.top=(ev.clientY-pq.offY)+'px';}
     }
     ev.preventDefault();ev.stopImmediatePropagation();
   },true);
 
   window.addEventListener('pointerup',ev=>{
-    if(!q||ev.pointerId!==q.pointerId)return;
-    const id=q.id,was=q.dragging;
+    if(!pq||ev.pointerId!==pq.pointerId)return;
+    const id=pq.id,was=pq.dragging;
     ev.preventDefault();ev.stopImmediatePropagation();
     if(was){
       try{drag=id;drop(id);}catch(_){returnPiece(id);}
@@ -9604,27 +9603,33 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     }else{
       try{gestureTap(id);}catch(_){}
     }
-    q=null;
+    suppressBoardClickUntil=performance.now()+500;
+    pq=null;
   },true);
 
   window.addEventListener('pointercancel',ev=>{
-    if(!q||ev.pointerId!==q.pointerId)return;
-    returnPiece(q.id);q=null;
+    if(!pq||ev.pointerId!==pq.pointerId)return;
+    returnPiece(pq.id);pq=null;
   },true);
 
-  function hardBoundary(){
-    if(q){returnPiece(q.id);q=null;}
-    clearGhosts(null);
-    try{drag=null;pendingPieceDrag=null;}catch(_){}
-  }
-  window.addEventListener('orientationchange',hardBoundary,true);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)hardBoundary();},true);
-  window.addEventListener('blur',hardBoundary,true);
-  document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn'))hardBoundary();
+  /*
+    A triple-tap that sends a piece home can expose a BOARD button under the
+    finger before Chrome synthesizes click. Block that one synthetic click.
+  */
+  document.addEventListener('click',ev=>{
+    if(performance.now()>suppressBoardClickUntil)return;
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')){
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
   },true);
 
-  document.title='ANSSIPASI '+VERSION+' · STABLE SINGLE DRAG';
+  /* Same guard for FULL/JUMBO piece gestures: no click-through into BOARD selector. */
+  window.addEventListener('pointerup',ev=>{
+    if(ev.target?.closest?.('.piece')) suppressBoardClickUntil=performance.now()+500;
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · PARTIAL OWNER + CLICK GUARD';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
