@@ -8897,3 +8897,74 @@ body.partialMode #board > .partialCell{visibility:visible!important}
   setTimeout(syncVersion,500);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.0.94: hard PARTIAL 20 silhouette fix. FULL/JUMBO unchanged. -->
+<style>
+html.v294Partial #board{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+html.v294Partial #board > i.cell,
+html.v294Partial #board > .cell{visibility:hidden!important}
+html.v294Partial #v294PartialOverlay,
+html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
+#v294PartialOverlay{position:absolute;inset:0;pointer-events:none;z-index:0}
+#v294PartialOverlay .v294Cell{position:absolute;box-sizing:border-box;background:#fff;border:2px solid #d9d2d5}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.0.94';
+  const CELLS=[
+    [1,0],[2,0],[3,0],
+    [1,1],[2,1],[3,1],[4,1],[5,1],
+    [1,2],[2,2],[3,2],[4,2],[5,2],
+    [0,3],[1,3],[2,3],[4,3],[5,3],
+    [4,4],[5,4]
+  ];
+  const root=document.documentElement;
+  const board=document.getElementById('board');
+  function ensureOverlay(){
+    if(!board || !root.classList.contains('v294Partial')) return;
+    board.style.width=(6*cell)+'px';
+    board.style.height=(5*cell)+'px';
+    let ov=document.getElementById('v294PartialOverlay');
+    if(!ov){
+      ov=document.createElement('div');
+      ov.id='v294PartialOverlay';
+      board.insertBefore(ov,board.firstChild);
+    }
+    ov.innerHTML='';
+    for(const [x,y] of CELLS){
+      const d=document.createElement('div');
+      d.className='v294Cell';
+      Object.assign(d.style,{left:(x*cell)+'px',top:(y*cell)+'px',width:cell+'px',height:cell+'px'});
+      ov.appendChild(d);
+    }
+  }
+  function setPartial(){
+    root.classList.add('v294Partial');
+    requestAnimationFrame(()=>requestAnimationFrame(ensureOverlay));
+    setTimeout(ensureOverlay,40); setTimeout(ensureOverlay,120); setTimeout(ensureOverlay,260);
+  }
+  function clearPartial(){
+    root.classList.remove('v294Partial');
+    document.getElementById('v294PartialOverlay')?.remove();
+  }
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#partialBtn')) setPartial();
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn')) clearPartial();
+  },true);
+  document.addEventListener('click',ev=>{
+    if(ev.target?.closest?.('#partialBtn')) setPartial();
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn')) clearPartial();
+  },true);
+  window.addEventListener('resize',()=>{if(root.classList.contains('v294Partial')) setTimeout(ensureOverlay,80)});
+  window.addEventListener('orientationchange',()=>{if(root.classList.contains('v294Partial')) setTimeout(ensureOverlay,140)});
+  if(board){
+    const mo=new MutationObserver(()=>{if(root.classList.contains('v294Partial')) requestAnimationFrame(ensureOverlay)});
+    mo.observe(board,{childList:true});
+  }
+  document.title='ANSSIPASI '+VERSION+' · PARTIAL 20 SILHOUETTE FIX';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+  }));
+})();
+</script>
