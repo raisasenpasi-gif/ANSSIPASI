@@ -8725,3 +8725,43 @@ body.partialMode #board::before{
   },true);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.0.91: active BOARD selector + PARTIAL activation fix. -->
+<style>
+/* v2.0.77 disabled the whole BOARD selector after START TASK. The later
+   lightweight piece-over-selector guard already prevents accidental mode
+   presses while handling a piece, so the selector can remain usable. */
+body.v277TaskActive #modeChooser,
+body.v277TaskActive #modeChooser *{
+  pointer-events:auto!important;
+}
+body.v277TaskActive #modeChooser{
+  opacity:1!important;
+  filter:none!important;
+}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.0.91';
+  const CREDIT='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  const chooser=document.getElementById('modeChooser');
+  if(chooser) chooser.removeAttribute('aria-disabled');
+
+  /* Keep the visible version stamp from being overwritten by historical
+     layered patches that run later in the document. */
+  const syncVersion=()=>{
+    document.title='ANSSIPASI '+VERSION+' · PARTIAL ACTIVE TEST';
+    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+      if(c.textContent!==CREDIT)c.textContent=CREDIT;
+    });
+    document.getElementById('modeChooser')?.removeAttribute('aria-disabled');
+  };
+  syncVersion();
+  requestAnimationFrame(()=>requestAnimationFrame(syncVersion));
+  setTimeout(syncVersion,100);
+  setTimeout(syncVersion,500);
+  const credits=[...document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit')];
+  credits.forEach(c=>new MutationObserver(syncVersion).observe(c,{childList:true,characterData:true,subtree:true}));
+})();
+</script>
