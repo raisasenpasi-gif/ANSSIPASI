@@ -9498,7 +9498,40 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-
-<!-- ANSSIPASI v2.1.40 DIRECT SHELF POINTER OWNER -->
-<style>#shelf .piece{pointer-events:auto!important;touch-action:none!important;-webkit-user-select:none!important;user-select:none!important}</style>
-<script>(()=>{const VERSION='v2.1.40';window.addEventListener('pointerdown',ev=>{const e=ev.target?.closest?.('#shelf .piece');if(!e||e.classList.contains('freezeLocked')||e.classList.contains('freezeHidden'))return;const id=Number(e.dataset.id);if(!Number.isFinite(id)||!S?.[id])return;try{solved=false;paused=false;}catch(_){}const r=e.getBoundingClientRect();try{pendingPieceDrag={id,pointerId:ev.pointerId,startX:ev.clientX,startY:ev.clientY,offX:ev.clientX-r.left,offY:ev.clientY-r.top,left:r.left,top:r.top};choose(id);}catch(_){}} ,true);document.title='ANSSIPASI '+VERSION+' · DIRECT SHELF POINTER OWNER';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();</script>
+<!-- ANSSIPASI v2.1.41 CAPTURE DRAG STREAM OWNER -->
+<style>
+#shelf .piece{pointer-events:auto!important;touch-action:none!important;-webkit-user-select:none!important;user-select:none!important}
+</style>
+<script>
+(()=>{
+ const VERSION='v2.1.41';
+ /* Android-safe drag stream: window capture sees motion before any historical
+    bubbling listener can delay/consume it. v2.1.28 remains the actual drag/drop engine. */
+ window.addEventListener('pointerdown',ev=>{
+   const e=ev.target?.closest?.('.piece');
+   if(!e||e.classList.contains('freezeLocked')||e.classList.contains('freezeHidden'))return;
+   const id=Number(e.dataset.id);if(!Number.isFinite(id)||!S?.[id])return;
+   try{if(typeof solved!=='boolean')solved=false;paused=false;}catch(_){}
+   const r=e.getBoundingClientRect();
+   pendingPieceDrag={id,pointerId:ev.pointerId,startX:ev.clientX,startY:ev.clientY,
+     offX:ev.clientX-r.left,offY:ev.clientY-r.top,left:r.left,top:r.top};
+   choose(id);
+ },true);
+ window.addEventListener('pointermove',ev=>{
+   try{
+     if(drag==null){
+       const q=pendingPieceDrag;
+       if(!q||q.pointerId!==ev.pointerId)return;
+       if(Math.hypot(ev.clientX-q.startX,ev.clientY-q.startY)<6)return;
+       beginPendingDrag(ev);
+     }
+     if(drag!=null){
+       const e=document.querySelector(`[data-id="${drag}"]`);
+       if(e){e.style.left=(ev.clientX-off[0])+'px';e.style.top=(ev.clientY-off[1])+'px';}
+     }
+   }catch(_){}
+ },true);
+ document.title='ANSSIPASI '+VERSION+' · CAPTURE DRAG STREAM OWNER';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
