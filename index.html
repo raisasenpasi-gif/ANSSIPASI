@@ -8997,52 +8997,58 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.0.99: persistent board-specific NUMBER OF TASKS chooser.
-     JUMBO/PARTIAL now keep the chooser visible until the player selects a count.
-     FULL flow and PARTIAL geometry are unchanged. -->
+<!-- ANSSIPASI v2.1.00: board-specific NUMBER OF TASKS chooser root fix.
+     Uses dynamic DOM lookup so JUMBO/PARTIAL receive the same chooser as FULL
+     even when the chooser is created after this patch loads. Board geometry unchanged. -->
 <script>
 (()=>{
-  const VERSION='v2.0.99';
-  const taskCard=document.getElementById('taskCard');
-  const taskTitle=document.getElementById('taskTitle');
-  const taskMeta=document.getElementById('taskMeta');
-  const startBtn=document.getElementById('startTask');
-  const progress=document.getElementById('sessionProgressCard');
-  const chooser=document.getElementById('taskCountChooser');
-  const partialBtn=document.getElementById('partialBtn');
-  const jumboBtn=document.getElementById('jumboBtn');
+  const VERSION='v2.1.00';
   let armedMode=null;
   let raf=0;
 
+  const $=id=>document.getElementById(id);
+
   function modeMeta(mode){
+    const title=$('taskTitle'), meta=$('taskMeta');
     if(mode==='partial'){
-      if(taskTitle) taskTitle.textContent='TASK P001';
-      if(taskMeta) taskMeta.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+      if(title) title.textContent='TASK P001';
+      if(meta) meta.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
     }else if(mode==='jumbo'){
-      // JUMBO's own historical handler supplies the current J-task title/meta.
-      // Only restore generic metadata if an older session decorator erased it.
-      if(taskTitle && !/^TASK J/i.test(taskTitle.textContent||'')) taskTitle.textContent='TASK J001';
-      if(taskMeta && !/JUMBO BOARD/i.test(taskMeta.innerHTML||''))
-        taskMeta.innerHTML='JUMBO BOARD · 49 SQUARES<br>MASTER 20<br>10 PIECES<br>EASY ★<br>TARGET TIME 08:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+      if(title && !/^TASK J/i.test(title.textContent||'')) title.textContent='TASK J001';
+      if(meta && !/JUMBO BOARD/i.test(meta.innerHTML||''))
+        meta.innerHTML='JUMBO BOARD · 49 SQUARES<br>MASTER 20<br>10 PIECES<br>EASY ★<br>TARGET TIME 08:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
     }
   }
 
-  function holdChooser(){
-    if(!armedMode || !taskCard || !chooser) return;
-    taskCard.style.setProperty('display','flex','important');
+  function forceChooser(){
+    if(!armedMode) return;
+    const card=$('taskCard');
+    const chooser=$('taskCountChooser');
+    const progress=$('sessionProgressCard');
+    const start=$('startTask');
+
+    /* The legacy FULL session code creates taskCountChooser lazily. If it does
+       not exist yet, call the established task-card path once, then retry. */
+    if(!chooser){
+      try{ if(typeof showTaskCard==='function') showTaskCard(); }catch(_){}
+      raf=requestAnimationFrame(forceChooser);
+      return;
+    }
+
+    if(card) card.style.setProperty('display','flex','important');
     chooser.style.setProperty('display','block','important');
-    if(progress) progress.style.setProperty('display','none','important');
-    if(startBtn) startBtn.disabled=true;
     chooser.querySelectorAll('[data-count]').forEach(b=>b.classList.remove('on'));
+    if(progress) progress.style.setProperty('display','none','important');
+    if(start) start.disabled=true;
     modeMeta(armedMode);
-    raf=requestAnimationFrame(holdChooser);
+    raf=requestAnimationFrame(forceChooser);
   }
 
   function arm(mode){
     armedMode=mode;
     cancelAnimationFrame(raf);
-    // Let the selected board finish rebuilding first, then own the card state.
-    setTimeout(()=>{ if(armedMode===mode) holdChooser(); },0);
+    /* Let the board's own JUMBO/PARTIAL handler finish first. */
+    setTimeout(forceChooser,0);
   }
 
   document.addEventListener('click',ev=>{
@@ -9050,30 +9056,37 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     else if(ev.target?.closest?.('#partialBtn')) arm('partial');
   },true);
 
-  chooser?.addEventListener('click',ev=>{
-    const b=ev.target?.closest?.('[data-count]');
-    if(!b || !armedMode) return;
+  /* The old NUMBER OF TASKS buttons already own the real session variables.
+     Let that listener run, then release our visual hold so its normal
+     decorateTaskCard() state becomes authoritative again. */
+  document.addEventListener('click',ev=>{
+    const count=ev.target?.closest?.('#taskCountChooser [data-count]');
+    if(!count || !armedMode) return;
     const mode=armedMode;
-    // Release after the legacy count handler has updated the session target.
     setTimeout(()=>{
       armedMode=null;
       cancelAnimationFrame(raf);
-      chooser.style.removeProperty('display');
-      if(progress) progress.style.removeProperty('display');
-      if(startBtn) startBtn.disabled=false;
+      const chooser=$('taskCountChooser');
+      const progress=$('sessionProgressCard');
+      const start=$('startTask');
+      chooser?.style.removeProperty('display');
+      progress?.style.removeProperty('display');
+      if(start) start.disabled=false;
       modeMeta(mode);
+      try{ if(typeof decorateTaskCard==='function') decorateTaskCard(); }catch(_){}
     },0);
   },false);
 
-  startBtn?.addEventListener('click',()=>{
+  $('startTask')?.addEventListener('click',()=>{
     armedMode=null; cancelAnimationFrame(raf);
   },true);
 
-  document.title='ANSSIPASI '+VERSION;
-  const sync=()=>document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
+  function sync(){
+    document.title='ANSSIPASI '+VERSION;
+    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+      c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+    });
+  }
   sync(); requestAnimationFrame(()=>requestAnimationFrame(sync)); setTimeout(sync,250);
 })();
 </script>
-
