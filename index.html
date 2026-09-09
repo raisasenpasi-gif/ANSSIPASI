@@ -9498,40 +9498,170 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.41 CAPTURE DRAG STREAM OWNER -->
-<style>
-#shelf .piece{pointer-events:auto!important;touch-action:none!important;-webkit-user-select:none!important;user-select:none!important}
-</style>
+<!-- ANSSIPASI v2.1.43 DIRECT POINTER DRAG OWNER -->
 <script>
 (()=>{
- const VERSION='v2.1.41';
- /* Android-safe drag stream: window capture sees motion before any historical
-    bubbling listener can delay/consume it. v2.1.28 remains the actual drag/drop engine. */
- window.addEventListener('pointerdown',ev=>{
-   const e=ev.target?.closest?.('.piece');
-   if(!e||e.classList.contains('freezeLocked')||e.classList.contains('freezeHidden'))return;
-   const id=Number(e.dataset.id);if(!Number.isFinite(id)||!S?.[id])return;
-   try{if(typeof solved!=='boolean')solved=false;paused=false;}catch(_){}
-   const r=e.getBoundingClientRect();
-   pendingPieceDrag={id,pointerId:ev.pointerId,startX:ev.clientX,startY:ev.clientY,
-     offX:ev.clientX-r.left,offY:ev.clientY-r.top,left:r.left,top:r.top};
-   choose(id);
- },true);
- window.addEventListener('pointermove',ev=>{
-   try{
-     if(drag==null){
-       const q=pendingPieceDrag;
-       if(!q||q.pointerId!==ev.pointerId)return;
-       if(Math.hypot(ev.clientX-q.startX,ev.clientY-q.startY)<6)return;
-       beginPendingDrag(ev);
-     }
-     if(drag!=null){
-       const e=document.querySelector(`[data-id="${drag}"]`);
-       if(e){e.style.left=(ev.clientX-off[0])+'px';e.style.top=(ev.clientY-off[1])+'px';}
-     }
-   }catch(_){}
- },true);
- document.title='ANSSIPASI '+VERSION+' · CAPTURE DRAG STREAM OWNER';
- document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+  const VERSION='v2.1.43';
+  const THRESHOLD=5;
+  let dp=null;
+
+  function pieceEl(id){
+    return document.querySelector(`.piece[data-id="${id}"]`);
+  }
+
+  function gameplayOpen(){
+    try{
+      if(document.getElementById('taskCard')?.style.display==='flex') return false;
+      if(document.getElementById('boardSessionGate')?.style.display==='flex') return false;
+      if(typeof paused!=='undefined' && paused) return false;
+      if(typeof solved!=='undefined' && solved) return false;
+    }catch(_){}
+    return true;
+  }
+
+  function clearDirect(){
+    dp=null;
+    try{ pendingPieceDrag=null; }catch(_){}
+    try{ drag=null; }catch(_){}
+  }
+
+  function beginDirect(ev){
+    if(!dp || dp.dragging) return;
+    const id=dp.id, e=pieceEl(id);
+    if(!e) return clearDirect();
+
+    try{
+      if(S?.[id]?.place) clear(id);
+    }catch(_){}
+
+    try{
+      (window.__piecePortal2116 || document.body).append(e);
+    }catch(_){
+      document.body.append(e);
+    }
+
+    Object.assign(e.style,{
+      position:'fixed',
+      transform:'scale(1)',
+      transformOrigin:'top left',
+      zIndex:'1000',
+      pointerEvents:'auto',
+      touchAction:'none'
+    });
+
+    try{
+      drag=id;
+      off=[dp.offX,dp.offY];
+      pendingPieceDrag=null;
+    }catch(_){}
+
+    dp.dragging=true;
+    try{ document.querySelector('#tools')?.classList.add('dragHidden'); }catch(_){}
+  }
+
+  function moveDirect(ev){
+    if(!dp || ev.pointerId!==dp.pointerId) return;
+    const dx=ev.clientX-dp.startX, dy=ev.clientY-dp.startY;
+
+    if(!dp.dragging){
+      if(Math.hypot(dx,dy)<THRESHOLD) return;
+      beginDirect(ev);
+    }
+
+    if(!dp?.dragging) return;
+    const e=pieceEl(dp.id);
+    if(!e) return clearDirect();
+
+    e.style.left=(ev.clientX-dp.offX)+'px';
+    e.style.top=(ev.clientY-dp.offY)+'px';
+  }
+
+  function finishDirect(ev, cancelled=false){
+    if(!dp || ev.pointerId!==dp.pointerId) return;
+    const id=dp.id;
+    const wasDrag=dp.dragging;
+
+    if(wasDrag){
+      try{
+        drag=id;
+        if(cancelled){
+          if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
+          else home(id,false);
+        }else{
+          drop(id);
+        }
+      }catch(_){
+        try{ home(id,false); }catch(__){}
+      }
+      try{ drag=null; pendingPieceDrag=null; }catch(_){}
+      try{ document.querySelector('#tools')?.classList.remove('dragHidden'); }catch(_){}
+    }else if(!cancelled){
+      try{ gestureTap(id); }catch(_){}
+    }
+
+    dp=null;
+  }
+
+  /* Own the entire pointer stream for a piece before the historical handlers see it. */
+  window.addEventListener('pointerdown',ev=>{
+    const e=ev.target?.closest?.('.piece');
+    if(!e || !gameplayOpen()) return;
+
+    const id=Number(e.dataset.id);
+    if(!Number.isFinite(id) || !S?.[id] || S[id].locked) return;
+
+    const r=e.getBoundingClientRect();
+    dp={
+      id,
+      pointerId:ev.pointerId,
+      startX:ev.clientX,
+      startY:ev.clientY,
+      offX:ev.clientX-r.left,
+      offY:ev.clientY-r.top,
+      dragging:false
+    };
+
+    try{
+      pendingPieceDrag=null;
+      drag=null;
+      choose(id);
+    }catch(_){}
+
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+  },true);
+
+  window.addEventListener('pointermove',ev=>{
+    if(!dp || ev.pointerId!==dp.pointerId) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    moveDirect(ev);
+  },true);
+
+  window.addEventListener('pointerup',ev=>{
+    if(!dp || ev.pointerId!==dp.pointerId) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    finishDirect(ev,false);
+  },true);
+
+  window.addEventListener('pointercancel',ev=>{
+    if(!dp || ev.pointerId!==dp.pointerId) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    finishDirect(ev,true);
+  },true);
+
+  /* Never leave an actively dragged portal piece stranded over the portrait pause screen. */
+  window.addEventListener('orientationchange',()=>{
+    if(!dp) return;
+    const fake={pointerId:dp.pointerId};
+    finishDirect(fake,true);
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · DIRECT POINTER DRAG OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
+    c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
+  );
 })();
 </script>
