@@ -9496,18 +9496,15 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.53 PARTIAL OWNER + CLICK-THROUGH GUARD -->
+<!-- ANSSIPASI v2.1.56 SINGLE OWNER CONSOLIDATION -->
 <script>
 (()=>{
-  const VERSION='v2.1.53', THRESHOLD=5;
-  let pq=null, suppressBoardClickUntil=0;
+  const VERSION='v2.1.56';
+  let boardQ=null;
+  const THRESHOLD=5;
 
   const inside=(x,y,r)=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
   const byId=id=>document.querySelector(`.piece[data-id="${id}"]`);
-
-  function isPartial(){
-    return document.body.classList.contains('partialMode');
-  }
 
   function modalOpen(){
     return ['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
@@ -9520,59 +9517,74 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
       });
   }
 
-  function partialPieceAt(x,y){
-    if(!isPartial())return null;
-    const pieces=[...document.querySelectorAll('.piece')].reverse();
-    for(const e of pieces){
+  function placedPieceAt(x,y){
+    for(const e of [...document.querySelectorAll('#board .piece')].reverse()){
       const id=+e.dataset.id;
-      if(!Number.isFinite(id))continue;
+      if(!Number.isFinite(id) || !S[id]?.place) continue;
       const r=e.getBoundingClientRect();
-      if(inside(x,y,r))return {id,e,r};
+      if(inside(x,y,r)) return {id,e,r};
     }
     return null;
   }
 
-  function returnPiece(id){
+  function returnGhost(id){
+    const e=byId(id);
     try{drag=null;pendingPieceDrag=null;}catch(_){}
     try{
       if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
       else home(id,false);
     }catch(_){try{home(id,false);}catch(__){}}
-    const e=byId(id);
-    if(e){e.classList.remove('sel');e.style.pointerEvents='';e.style.zIndex='';}
+    if(e){
+      e.classList.remove('sel');
+      e.style.pointerEvents='';
+      e.style.zIndex='';
+    }
     try{tools.style.display='none';}catch(_){}
   }
 
-  function startPartialDrag(ev){
-    if(!pq||pq.dragging)return;
-    const id=pq.id,e=byId(id);
-    if(!e){pq=null;return;}
+  function cleanPortal(){
+    const portal=window.__piecePortal2116||document.getElementById('piecePortal2116');
+    if(!portal)return;
+    [...portal.querySelectorAll('.piece')].forEach(e=>returnGhost(+e.dataset.id));
+    boardQ=null;
+    try{drag=null;pendingPieceDrag=null;}catch(_){}
+  }
+
+  function beginBoardDrag(ev){
+    if(!boardQ || boardQ.dragging) return;
+    const id=boardQ.id,e=byId(id);
+    if(!e){boardQ=null;return;}
 
     try{
-      paused=false;solved=false;
-      if(S[id]?.place)clear(id);
+      paused=false; solved=false;
+      clear(id);
       choose(id);
       (window.__piecePortal2116||document.body).append(e);
-      drag=id;off=[pq.offX,pq.offY];pendingPieceDrag=null;
+      drag=id; off=[boardQ.offX,boardQ.offY]; pendingPieceDrag=null;
     }catch(_){}
 
-    pq.dragging=true;
+    boardQ.dragging=true;
     Object.assign(e.style,{
       position:'fixed',
-      left:(ev.clientX-pq.offX)+'px',
-      top:(ev.clientY-pq.offY)+'px',
-      transform:'scale(1)',transformOrigin:'top left',
-      zIndex:'1000',pointerEvents:'auto'
+      left:(ev.clientX-boardQ.offX)+'px',
+      top:(ev.clientY-boardQ.offY)+'px',
+      transform:'scale(1)',
+      transformOrigin:'top left',
+      zIndex:'1000',
+      pointerEvents:'auto'
     });
   }
 
-  /* PARTIAL gets one authoritative pointer owner for BOTH shelf and board pieces. */
+  /*
+    ONE extra owner only for pieces already placed on the board.
+    SHELF pieces remain owned solely by the proven v2.1.50 coordinate owner.
+  */
   window.addEventListener('pointerdown',ev=>{
-    if(!isPartial()||modalOpen())return;
-    const hit=partialPieceAt(ev.clientX,ev.clientY);
+    if(modalOpen())return;
+    const hit=placedPieceAt(ev.clientX,ev.clientY);
     if(!hit)return;
 
-    pq={
+    boardQ={
       id:hit.id,pointerId:ev.pointerId,
       startX:ev.clientX,startY:ev.clientY,
       offX:ev.clientX-hit.r.left,offY:ev.clientY-hit.r.top,
@@ -9583,64 +9595,46 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
   },true);
 
   window.addEventListener('pointermove',ev=>{
-    if(!pq||ev.pointerId!==pq.pointerId)return;
-    if(!pq.dragging&&Math.hypot(ev.clientX-pq.startX,ev.clientY-pq.startY)>=THRESHOLD)
-      startPartialDrag(ev);
-    if(pq?.dragging){
-      const e=byId(pq.id);
-      if(e){e.style.left=(ev.clientX-pq.offX)+'px';e.style.top=(ev.clientY-pq.offY)+'px';}
+    if(!boardQ||ev.pointerId!==boardQ.pointerId)return;
+    if(!boardQ.dragging &&
+       Math.hypot(ev.clientX-boardQ.startX,ev.clientY-boardQ.startY)>=THRESHOLD)
+      beginBoardDrag(ev);
+
+    if(boardQ?.dragging){
+      const e=byId(boardQ.id);
+      if(e){
+        e.style.left=(ev.clientX-boardQ.offX)+'px';
+        e.style.top=(ev.clientY-boardQ.offY)+'px';
+      }
     }
     ev.preventDefault();ev.stopImmediatePropagation();
   },true);
 
   window.addEventListener('pointerup',ev=>{
-    if(!pq||ev.pointerId!==pq.pointerId)return;
-    const id=pq.id,was=pq.dragging;
+    if(!boardQ||ev.pointerId!==boardQ.pointerId)return;
+    const id=boardQ.id,was=boardQ.dragging;
     ev.preventDefault();ev.stopImmediatePropagation();
+
     if(was){
-      try{drag=id;drop(id);}catch(_){returnPiece(id);}
+      try{drag=id;drop(id);}catch(_){returnGhost(id);}
       try{drag=null;pendingPieceDrag=null;}catch(_){}
     }else{
       try{gestureTap(id);}catch(_){}
     }
-    suppressBoardClickUntil=performance.now()+500;
-    pq=null;
+    boardQ=null;
   },true);
 
   window.addEventListener('pointercancel',ev=>{
-    if(!pq||ev.pointerId!==pq.pointerId)return;
-    returnPiece(pq.id);pq=null;
+    if(!boardQ||ev.pointerId!==boardQ.pointerId)return;
+    returnGhost(boardQ.id);boardQ=null;
   },true);
 
-  /*
-    A triple-tap that sends a piece home can expose a BOARD button under the
-    finger before Chrome synthesizes click. Block that one synthetic click.
-  */
-  document.addEventListener('click',ev=>{
-    if(performance.now()>suppressBoardClickUntil)return;
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-    }
-  },true);
+  /* Portrait/pause transition: no floating portal piece may survive over the card. */
+  window.addEventListener('orientationchange',()=>setTimeout(cleanPortal,0),true);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)cleanPortal();},true);
+  window.addEventListener('blur',cleanPortal,true);
 
-  /* Same guard for FULL/JUMBO piece gestures: no click-through into BOARD selector. */
-  window.addEventListener('pointerup',ev=>{
-    if(ev.target?.closest?.('.piece')) suppressBoardClickUntil=performance.now()+500;
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · PARTIAL OWNER + CLICK GUARD';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
-    c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
-  );
-})();
-</script>
-
-<!-- ANSSIPASI v2.1.55 ROLLBACK TEST: v2.1.53 INPUT -->
-<script>
-(()=>{
-  const VERSION='v2.1.55';
-  document.title='ANSSIPASI '+VERSION+' · ROLLBACK INPUT TEST';
+  document.title='ANSSIPASI '+VERSION+' · SINGLE OWNER CONSOLIDATION';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
