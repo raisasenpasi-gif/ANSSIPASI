@@ -9499,62 +9499,6 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 </script>
 
 
-<!-- ANSSIPASI v2.1.39 CORE SOLVED-STATE RESTORE -->
-<style>
-.center,#shelf,#board{pointer-events:auto!important}
-.piece:not(.freezeLocked):not(.freezeHidden){pointer-events:auto!important;touch-action:none!important}
-</style>
-<script>
-(()=>{
-  const VERSION='v2.1.39';
-
-  /* The core pickup gate is `if(paused||solved)return`. Historical PARTIAL
-     layers have previously turned `solved` into a function. A function is
-     truthy, which rejects every pickup on every board. Restore the core
-     contract: solved is always a boolean during live play. */
-  function unlockLivePieces(){
-    try{ solved=false; paused=false; pauseStarted=0; }catch(_){}
-    try{ pendingPieceDrag=null; drag=null; }catch(_){}
-    const center=document.querySelector('.center');
-    if(center){center.style.pointerEvents='';center.style.filter='';}
-    document.querySelectorAll('.piece').forEach(e=>{
-      e.style.pointerEvents='';
-      e.style.touchAction='none';
-      e.classList.remove('freezeHidden');
-      try{
-        const id=Number(e.dataset.id);
-        if(Number.isFinite(id)&&S?.[id]) S[id].locked=false;
-        e.onpointerdown=down;
-      }catch(_){}
-    });
-    const pb=document.getElementById('pause');
-    if(pb)pb.textContent='Ⅱ PAUSE';
-  }
-
-  /* Native FULL/JUMBO start. Run after the existing START handler. */
-  document.addEventListener('click',ev=>{
-    if(!ev.target?.closest?.('#startTask'))return;
-    setTimeout(unlockLivePieces,0);
-    setTimeout(unlockLivePieces,80);
-  },false);
-
-  /* JUMBO/PARTIAL use the separate board-session START button. PARTIAL does
-     not press native START, so it needs the same explicit live-state commit. */
-  document.getElementById('bsgStart')?.addEventListener('click',()=>{
-    setTimeout(unlockLivePieces,20);
-    setTimeout(unlockLivePieces,120);
-  },false);
-
-  /* Safety at the actual piece press: repair only the two core booleans before
-     v2.1.28 down() evaluates its pickup gate. */
-  window.addEventListener('pointerdown',ev=>{
-    const e=ev.target?.closest?.('.piece');
-    if(!e||e.classList.contains('freezeLocked'))return;
-    try{ if(typeof solved!=='boolean') solved=false; }catch(_){}
-    try{ if(paused && document.getElementById('taskCard')?.style.display!=='flex' && document.getElementById('boardSessionGate')?.style.display!=='flex') paused=false; }catch(_){}
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · CORE SOLVED STATE RESTORE';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
+<!-- ANSSIPASI v2.1.40 DIRECT SHELF POINTER OWNER -->
+<style>#shelf .piece{pointer-events:auto!important;touch-action:none!important;-webkit-user-select:none!important;user-select:none!important}</style>
+<script>(()=>{const VERSION='v2.1.40';window.addEventListener('pointerdown',ev=>{const e=ev.target?.closest?.('#shelf .piece');if(!e||e.classList.contains('freezeLocked')||e.classList.contains('freezeHidden'))return;const id=Number(e.dataset.id);if(!Number.isFinite(id)||!S?.[id])return;try{solved=false;paused=false;}catch(_){}const r=e.getBoundingClientRect();try{pendingPieceDrag={id,pointerId:ev.pointerId,startX:ev.clientX,startY:ev.clientY,offX:ev.clientX-r.left,offY:ev.clientY-r.top,left:r.left,top:r.top};choose(id);}catch(_){}} ,true);document.title='ANSSIPASI '+VERSION+' · DIRECT SHELF POINTER OWNER';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();</script>
