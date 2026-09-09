@@ -3,7 +3,9 @@
 <script>document.documentElement.classList.add('v288Boot');</script>
 <style>
 /* v2.0.88 startup paint guard: keep gameplay chrome hidden until TASK card is visible. */
-html.v288Boot body{opacity:0!important}
+html.v288Boot body{opacity:1!important}
+html.v288Boot body>*{visibility:hidden!important}
+html.v288Boot #taskCard{visibility:visible!important;opacity:1!important;transition:none!important}
 </style><!-- v2.0.65 clean startup baseline: diagnostic overlay removed; game logic unchanged from v2.0.63 --><style>
 *{box-sizing:border-box}body{margin:0;background:#fdebf2;font-family:Arial;color:#3b2c34;touch-action:none;overflow:hidden}
 header{height:58px;background:#fff7fa;display:flex;align-items:center;gap:7px;padding:7px 12px;border-bottom:2px solid #f3bfd2}.brand{font-size:24px;font-weight:900}.tag{font-size:9px;color:#a85c79}.grow{flex:1}
@@ -201,7 +203,10 @@ function choose(id){
 }
 function clear(id){S[id].place=null;rebuildOcc(id)}
 function down(ev){
- if(paused||solved)return;
+  /* v2.1.48: sanitize historical state pollution at the actual pickup gate. */
+  if(typeof paused!=='boolean') paused=false;
+  if(typeof solved!=='boolean') solved=false;
+  if(paused||solved)return;
  const e=ev.currentTarget,id=+e.dataset.id,r=e.getBoundingClientRect();
  /* v2.1.28: a stationary tap must NOT detach, clear or re-parent the piece.
     We only arm a possible drag here. The actual drag starts after the finger
@@ -9491,12 +9496,27 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-
-<!-- ANSSIPASI v2.1.47 PURE v2.1.28 CONTROL TEST -->
+<!-- ANSSIPASI v2.1.48 INPUT STATE GATE -->
+<style>
+#shelf,.piece,#piecePortal2116{touch-action:none!important}
+</style>
 <script>
 (()=>{
-  const VERSION='v2.1.47';
-  document.title='ANSSIPASI '+VERSION+' · PURE v2.1.28 CONTROL';
+  const VERSION='v2.1.48';
+  function armGameplay(){
+    try{
+      if(typeof paused!=='boolean') paused=false;
+      if(typeof solved!=='boolean') solved=false;
+      solved=false; paused=false;
+    }catch(_){}
+  }
+  document.addEventListener('click',ev=>{
+    const b=ev.target?.closest?.('#startTask,#boardSessionGate button,.startTask,#taskCard button');
+    if(!b)return;
+    setTimeout(armGameplay,0);
+    setTimeout(armGameplay,40);
+  },true);
+  document.title='ANSSIPASI '+VERSION+' · INPUT STATE GATE';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
