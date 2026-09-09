@@ -9496,59 +9496,84 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.50 COORDINATE SHELF OWNER -->
+<!-- ANSSIPASI v2.1.51 SINGLE DRAG LIFECYCLE -->
 <script>
 (()=>{
-  const VERSION='v2.1.50';
+  const VERSION='v2.1.51';
   const THRESHOLD=5;
   let q=null;
 
-  function inRect(x,y,r){
-    return x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
-  }
+  const byId=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const inside=(x,y,r)=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
 
-  function shelfPieceAt(x,y){
-    const sh=document.getElementById('shelf');
-    if(!sh || !inRect(x,y,sh.getBoundingClientRect())) return null;
-
-    /* Do not trust event.target. Find the visible shelf piece geometrically. */
-    const pieces=[...sh.querySelectorAll('.piece')].reverse();
-    for(const e of pieces){
-      const id=Number(e.dataset.id);
-      if(!Number.isFinite(id)) continue;
-      const r=e.getBoundingClientRect();
-      if(inRect(x,y,r)) return {e,id,r};
-    }
-    return null;
-  }
-
-  function modalVisible(){
+  function modalOpen(){
     const ids=['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
       'correctCard','sessionComplete','quitConfirm','stopConfirm228',
       'boardSwitchShield211','boardSessionGate'];
     return ids.some(id=>{
       const e=document.getElementById(id);
-      return e && getComputedStyle(e).display!=='none';
+      if(!e)return false;
+      const c=getComputedStyle(e);
+      return c.display!=='none'&&c.visibility!=='hidden';
     });
   }
 
+  function shelfHit(x,y){
+    const sh=document.getElementById('shelf');
+    if(!sh||!inside(x,y,sh.getBoundingClientRect()))return null;
+    for(const e of [...sh.querySelectorAll('.piece')].reverse()){
+      const r=e.getBoundingClientRect();
+      if(inside(x,y,r))return {id:+e.dataset.id,e,r};
+    }
+    return null;
+  }
+
+  function resetFloating(id,toShelf=true){
+    const e=byId(id);
+    try{drag=null;pendingPieceDrag=null;}catch(_){}
+    if(!e)return;
+    e.classList.remove('sel');
+    e.style.pointerEvents='';
+    e.style.zIndex='';
+    if(toShelf){
+      try{
+        if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
+        else home(id,false);
+      }catch(_){try{home(id,false);}catch(__){}}
+    }
+    try{tools.style.display='none';}catch(_){}
+  }
+
+  function normalizeAllFloating(){
+    const portal=window.__piecePortal2116||document.getElementById('piecePortal2116');
+    if(portal){
+      [...portal.querySelectorAll('.piece')].forEach(e=>resetFloating(+e.dataset.id,true));
+    }
+    q=null;
+    try{drag=null;pendingPieceDrag=null;}catch(_){}
+  }
+
   function begin(ev){
-    if(!q || q.dragging) return;
-    const {id}=q;
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
-    if(!e) return q=null;
+    if(!q||q.dragging)return;
+    const e=byId(q.id);
+    if(!e){q=null;return;}
+
+    normalizeAllFloating();
+    // normalizeAllFloating clears q, so restore the one intentional drag.
+    q={...begin.saved,dragging:true};
+    const id=q.id;
+    const p=byId(id);
+    if(!p){q=null;return;}
 
     try{
-      paused=false;
-      solved=false;
-      if(S[id]?.place) clear(id);
+      paused=false;solved=false;
+      if(S[id]?.place)clear(id);
       choose(id);
+      (window.__piecePortal2116||document.body).append(p);
+      drag=id;off=[q.offX,q.offY];pendingPieceDrag=null;
     }catch(_){}
 
-    try{(window.__piecePortal2116||document.body).append(e);}
-    catch(_){document.body.append(e);}
-
-    Object.assign(e.style,{
+    Object.assign(p.style,{
       position:'fixed',
       left:(ev.clientX-q.offX)+'px',
       top:(ev.clientY-q.offY)+'px',
@@ -9557,20 +9582,14 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
       zIndex:'1000',
       pointerEvents:'auto'
     });
-
-    try{
-      drag=id;
-      off=[q.offX,q.offY];
-      pendingPieceDrag=null;
-    }catch(_){}
-    q.dragging=true;
   }
 
   window.addEventListener('pointerdown',ev=>{
-    if(modalVisible()) return;
-    const hit=shelfPieceAt(ev.clientX,ev.clientY);
-    if(!hit) return;
+    if(modalOpen())return;
+    const hit=shelfHit(ev.clientX,ev.clientY);
+    if(!hit)return;
 
+    normalizeAllFloating();
     q={
       id:hit.id,pointerId:ev.pointerId,
       startX:ev.clientX,startY:ev.clientY,
@@ -9578,34 +9597,33 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
       offY:ev.clientY-hit.r.top,
       dragging:false
     };
-    try{choose(hit.id);}catch(_){}
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
+    try{paused=false;solved=false;choose(hit.id);}catch(_){}
+    ev.preventDefault();ev.stopImmediatePropagation();
   },true);
 
   window.addEventListener('pointermove',ev=>{
-    if(!q || ev.pointerId!==q.pointerId) return;
-    const dx=ev.clientX-q.startX,dy=ev.clientY-q.startY;
-    if(!q.dragging && Math.hypot(dx,dy)>=THRESHOLD) begin(ev);
+    if(!q||ev.pointerId!==q.pointerId)return;
+    if(!q.dragging){
+      if(Math.hypot(ev.clientX-q.startX,ev.clientY-q.startY)<THRESHOLD)return;
+      begin.saved={...q};
+      begin(ev);
+    }
     if(q?.dragging){
-      const e=document.querySelector(`.piece[data-id="${q.id}"]`);
+      const e=byId(q.id);
       if(e){
         e.style.left=(ev.clientX-q.offX)+'px';
         e.style.top=(ev.clientY-q.offY)+'px';
       }
     }
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
+    ev.preventDefault();ev.stopImmediatePropagation();
   },true);
 
   window.addEventListener('pointerup',ev=>{
-    if(!q || ev.pointerId!==q.pointerId) return;
-    const id=q.id, wasDrag=q.dragging;
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-
-    if(wasDrag){
-      try{drag=id;drop(id);}catch(_){try{home(id,false);}catch(__){}}
+    if(!q||ev.pointerId!==q.pointerId)return;
+    const id=q.id,was=q.dragging;
+    ev.preventDefault();ev.stopImmediatePropagation();
+    if(was){
+      try{drag=id;drop(id);}catch(_){resetFloating(id,true);}
       try{drag=null;pendingPieceDrag=null;}catch(_){}
     }else{
       try{gestureTap(id);}catch(_){}
@@ -9614,14 +9632,21 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
   },true);
 
   window.addEventListener('pointercancel',ev=>{
-    if(!q || ev.pointerId!==q.pointerId) return;
-    const id=q.id;
-    try{home(id,false);}catch(_){}
-    try{drag=null;pendingPieceDrag=null;}catch(_){}
-    q=null;
+    if(!q||ev.pointerId!==q.pointerId)return;
+    resetFloating(q.id,true);q=null;
   },true);
 
-  document.title='ANSSIPASI '+VERSION+' · COORDINATE SHELF OWNER';
+  /* Any UI/geometry transition must leave zero ghost pieces. */
+  window.addEventListener('orientationchange',normalizeAllFloating,true);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)normalizeAllFloating();},true);
+  window.addEventListener('blur',normalizeAllFloating,true);
+
+  /* Board switches are hard drag boundaries, especially PARTIAL. */
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')) normalizeAllFloating();
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · SINGLE DRAG LIFECYCLE';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
