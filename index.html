@@ -9500,74 +9500,82 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-
-<!-- ANSSIPASI v2.1.34 BOARD SWITCH ISOLATION
-     BOARD selection is isolated from the piece engine. Pointerdown never reaches
-     legacy board-mode mutators; J/P cards are painted at window-capture time so
-     no intermediate board can flash before the session card. FULL uses an opaque
-     transition cover until the native reload/task card takes over. -->
-<style>
-#v2134BoardCover{
-  position:fixed;inset:0;z-index:199999;display:none;
-  background:#fff7fa;pointer-events:none;
-}
+<!-- ANSSIPASI v2.1.35 CLEAN RELOAD BOARD ROUTER
+     Every F/J/P change starts from a fresh document. This prevents accumulated
+     legacy board handlers, drag state and orientation residue from crossing a
+     board-mode boundary. The chosen mode is carried only in the URL query. -->
+<style id="v2135Style">
+html.v2135Routing body>header,html.v2135Routing body>main{visibility:hidden!important}
 </style>
-<div id="v2134BoardCover"></div>
 <script>
 (()=>{
-  const VERSION='v2.1.34';
-  const cover=document.getElementById('v2134BoardCover');
-  const gate=document.getElementById('boardSessionGate');
-  const title=document.getElementById('bsgTaskTitle');
-  const meta=document.getElementById('bsgTaskMeta');
+  const VERSION='v2.1.35';
+  const Q='apboard';
+  let bootRouting=false;
+  const wanted=(new URLSearchParams(location.search).get(Q)||'').toLowerCase();
 
-  function paintImmediate(btn){
-    if(!gate||!title||!meta)return;
-    const jumbo=btn.id==='jumboBtn';
-    title.textContent=jumbo?'TASK J001':'TASK P001';
-    meta.innerHTML=jumbo
-      ? 'JUMBO BOARD · 49 SQUARES<br>MASTER 20<br>10 PIECES<br>EASY ★<br>TARGET TIME 08:00<br><span class="bsgPerfect">🌟 PERFECT SOLVE +1000</span>'
-      : 'PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>5 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span class="bsgPerfect">🌟 PERFECT SOLVE +1000</span>';
-    gate.style.display='flex';
+  function cleanUrlFor(mode){
+    const u=new URL(location.href);
+    if(mode==='full') u.searchParams.delete(Q); else u.searchParams.set(Q,mode);
+    u.searchParams.set('v','2135');
+    return u.toString();
   }
 
-  /* Critical isolation: old PARTIAL/JUMBO pointerdown patches below document
-     must never receive a BOARD press. We do NOT preventDefault, so Android still
-     creates the normal click and the proven v2.1.04 click controller can own it. */
+  /* Board selector ownership is absolute: do not let any historical board
+     mutator run in the old document. A fresh page owns the new board. */
   window.addEventListener('pointerdown',ev=>{
     const b=ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
-    if(!b)return;
-    ev.stopPropagation();
+    if(!b || bootRouting) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    const mode=b.id==='jumboBtn'?'jumbo':b.id==='partialBtn'?'partial':'full';
+    document.documentElement.classList.add('v2135Routing');
+    location.replace(cleanUrlFor(mode));
   },true);
-
-  /* Mask all historical click-time board painting before it can be seen. The
-     click itself continues to v2.1.04 so its private pendingButton/session logic
-     stays authoritative. */
   window.addEventListener('click',ev=>{
     const b=ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
-    if(!b)return;
-    if(b.id==='fullBtn'){
-      if(cover)cover.style.display='block';
-      /* Fail-safe if a legacy handler prevents the native reload. */
-      setTimeout(()=>{if(cover)cover.style.display='none'},1400);
-    }else{
-      paintImmediate(b);
-    }
+    if(!b || bootRouting) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
   },true);
 
-  /* START TASK may rebuild the chosen board behind the card. Keep the card
-     visible until the existing v2.1.04 controller finishes its own transition;
-     then normalize only the selector highlight. No piece/drag code is touched. */
-  document.getElementById('bsgStart')?.addEventListener('click',()=>{
-    const wanted=(title?.textContent||'').includes('P001')?'partial':'jumbo';
+  function routeFreshMode(){
+    if(wanted!=='jumbo' && wanted!=='partial') return;
+    const b=document.getElementById(wanted==='jumbo'?'jumboBtn':'partialBtn');
+    if(!b) return;
+    bootRouting=true;
+    /* Keep the fresh page covered while the proven session-card controller
+       opens the requested mode. */
+    document.documentElement.classList.add('v2135Routing');
+    try{ b.click(); }catch(_){}
     setTimeout(()=>{
-      const f=document.getElementById('fullBtn'),j=document.getElementById('jumboBtn'),p=document.getElementById('partialBtn');
-      [f,j,p].forEach(x=>x?.classList.remove('on'));
-      (wanted==='partial'?p:j)?.classList.add('on');
-    },120);
-  });
+      bootRouting=false;
+      document.documentElement.classList.remove('v2135Routing');
+    },80);
+  }
 
-  document.title='ANSSIPASI '+VERSION+' · BOARD SWITCH ISOLATION';
+  /* Run only after all historical handlers are installed. */
+  if(document.readyState==='loading'){
+    addEventListener('DOMContentLoaded',()=>setTimeout(routeFreshMode,0),{once:true});
+  }else setTimeout(routeFreshMode,0);
+
+  /* START TASK always releases the routing cover and restores piece input. */
+  document.addEventListener('click',ev=>{
+    if(!ev.target?.closest?.('#startTask,#bsgStart')) return;
+    document.documentElement.classList.remove('v2135Routing');
+    setTimeout(()=>{
+      try{
+        document.querySelectorAll('.piece').forEach(e=>{
+          e.style.pointerEvents='';
+          e.onpointerdown=down;
+        });
+        if(shelf)shelf.style.pointerEvents='';
+        if(board)board.style.pointerEvents='';
+      }catch(_){}
+    },120);
+  },false);
+
+  document.title='ANSSIPASI '+VERSION+' · CLEAN RELOAD BOARD ROUTER';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
