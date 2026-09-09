@@ -8806,3 +8806,94 @@ body.v277TaskActive #modeChooser{
 })();
 </script>
 
+
+<!-- ANSSIPASI v2.0.93: PARTIAL irregular 20-cell board visual/geometry fix. -->
+<style>
+body.partialMode #board > i.cell{visibility:hidden!important}
+body.partialMode #board > .partialCell{visibility:visible!important}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.0.93';
+  const CREDIT='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  const CELLS=[
+    [1,0],[2,0],[3,0],
+    [1,1],[2,1],[3,1],[4,1],[5,1],
+    [1,2],[2,2],[3,2],[4,2],[5,2],
+    [0,3],[1,3],[2,3],[4,3],[5,3],
+    [4,4],[5,4]
+  ];
+
+  function drawPartial293(){
+    const board=document.getElementById('board');
+    if(!board || !document.body.classList.contains('partialMode')) return;
+
+    /* PARTIAL uses the FULL 6x5 coordinate envelope, but only these 20 cells
+       are playable/visible. Remove stale JUMBO/FULL paint from the previous mode. */
+    board.style.width=(6*cell)+'px';
+    board.style.height=(5*cell)+'px';
+    board.querySelectorAll('i.cell').forEach(e=>e.style.setProperty('visibility','hidden','important'));
+    board.querySelectorAll('.partialCell').forEach(e=>e.remove());
+
+    CELLS.forEach(([x,y])=>{
+      const d=document.createElement('div');
+      d.className='partialCell';
+      Object.assign(d.style,{
+        position:'absolute',boxSizing:'border-box',background:'#fff',
+        border:'2px solid #d9d2d5',left:(x*cell)+'px',top:(y*cell)+'px',
+        width:cell+'px',height:cell+'px',zIndex:'0',visibility:'visible'
+      });
+      board.insertBefore(d,board.firstChild);
+    });
+
+    /* Keep the right-hand metadata aligned with the active PARTIAL test task. */
+    const taskNo=document.querySelector('#sideScore .fieldTaskNo');
+    if(taskNo) taskNo.textContent='TASK P001';
+    const meta=document.querySelector('#sideScore .v12meta');
+    if(meta) meta.innerHTML='<b>EASY ★</b><br>PIECES 4<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET 05:00';
+  }
+
+  function restoreNormal293(){
+    const board=document.getElementById('board');
+    if(!board) return;
+    board.querySelectorAll('.partialCell').forEach(e=>e.remove());
+    board.querySelectorAll('i.cell').forEach(e=>e.style.removeProperty('visibility'));
+  }
+
+  /* Listen on document capture so this schedules the correction before the
+     older PARTIAL target handler stops propagation on the button itself. */
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#partialBtn')){
+      setTimeout(drawPartial293,0);
+      setTimeout(drawPartial293,40);
+      setTimeout(drawPartial293,120);
+    }
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn')){
+      setTimeout(restoreNormal293,0);
+      setTimeout(restoreNormal293,80);
+    }
+  },true);
+  document.addEventListener('click',ev=>{
+    if(ev.target?.closest?.('#partialBtn')){
+      setTimeout(drawPartial293,0);
+      setTimeout(drawPartial293,50);
+      setTimeout(drawPartial293,150);
+    }
+  },true);
+
+  window.addEventListener('resize',()=>{
+    if(document.body.classList.contains('partialMode')) setTimeout(drawPartial293,100);
+  });
+  window.addEventListener('orientationchange',()=>{
+    if(document.body.classList.contains('partialMode')) setTimeout(drawPartial293,160);
+  });
+
+  const syncVersion=()=>{
+    document.title='ANSSIPASI '+VERSION+' · PARTIAL SHAPE FIX';
+    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent=CREDIT);
+  };
+  syncVersion();
+  setTimeout(syncVersion,120);
+  setTimeout(syncVersion,500);
+})();
+</script>
