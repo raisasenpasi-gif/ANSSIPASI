@@ -9454,3 +9454,90 @@ body > .piece.sel{
   });
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.18 ROBUST TRIPLE TAP + CLICK-THROUGH ROOT FIX
+     Unifies 1/2/3 tap recognition with a slightly wider mobile-safe window and
+     blocks Android's synthetic click at the exact piece-touch coordinate even
+     if the third tap sends the piece to SHELF before that click is dispatched. -->
+<script>
+(()=>{
+  const VERSION='v2.1.18';
+  const TAP_WINDOW=520;
+  let seq={id:null,count:0,last:0,preFlip:null,timer:null};
+  let lastPieceUp={x:-9999,y:-9999,until:0};
+
+  function cloneCells(a){return Array.isArray(a)?a.map(q=>[q[0],q[1]]):null;}
+  function resetSeq(){
+    if(seq.timer) clearTimeout(seq.timer);
+    seq={id:null,count:0,last:0,preFlip:null,timer:null};
+    try{
+      if(tapState?.timer) clearTimeout(tapState.timer);
+      tapState={id:null,count:0,timer:null};
+    }catch(_){ }
+  }
+
+  /* One authoritative tap recognizer for every board mode. */
+  try{
+    gestureTap=function(id){
+      if(paused||solved||id==null||!S[id]) return;
+      const now=performance.now();
+      if(seq.id!==id || now-seq.last>TAP_WINDOW){
+        resetSeq();
+        seq.id=id; seq.count=1; seq.last=now;
+        choose(id);
+      }else{
+        seq.count++; seq.last=now;
+        if(seq.count===2){
+          choose(id);
+          seq.preFlip=cloneCells(S[id]?.c||P[id]);
+          transform('f');
+          moves+=.5;
+          const ml=document.getElementById('moves'); if(ml) ml.textContent=moves;
+          try{buzz([10,25,10]);}catch(_){ }
+        }else if(seq.count>=3){
+          if(seq.preFlip && S[id]) S[id].c=cloneCells(seq.preFlip);
+          choose(id);
+          home(id,false);
+          moves+=.5;
+          const ml=document.getElementById('moves'); if(ml) ml.textContent=moves;
+          if(info) info.innerHTML='<b>↩ SHELF · 3 TAPS</b><br>Shortcut.';
+          try{buzz([10,25,10]);}catch(_){ }
+          resetSeq();
+          return;
+        }
+      }
+      if(seq.timer) clearTimeout(seq.timer);
+      seq.timer=setTimeout(resetSeq,TAP_WINDOW+40);
+    };
+  }catch(_){ }
+
+  /* Record every piece pointer-up before the piece may disappear/reparent. */
+  window.addEventListener('pointerup',ev=>{
+    const piece=ev.target?.closest?.('.piece');
+    if(!piece) return;
+    lastPieceUp={x:ev.clientX,y:ev.clientY,until:performance.now()+850};
+  },true);
+
+  /* Android may synthesize a click onto whatever becomes exposed under the
+     finger after SHELF. Swallow only clicks at the just-used piece coordinate. */
+  window.addEventListener('click',ev=>{
+    if(performance.now()>lastPieceUp.until) return;
+    const dx=ev.clientX-lastPieceUp.x, dy=ev.clientY-lastPieceUp.y;
+    if(dx*dx+dy*dy<=18*18){
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      lastPieceUp.until=0;
+    }
+  },true);
+
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#startTask,#redoTop,#nextTop,#sessionNew,#fullBtn,#jumboBtn,#partialBtn,#nextCorrect')) resetSeq();
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · ROBUST TRIPLE TAP FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
