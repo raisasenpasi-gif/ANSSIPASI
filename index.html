@@ -9499,44 +9499,35 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 </script>
 
 
-<!-- ANSSIPASI v2.1.37 SHELF INPUT UNLOCK -->
+<!-- ANSSIPASI v2.1.38 PIECE POINTER WAKEUP -->
+<style>
+/* Gameplay surfaces must remain touchable after a committed board change. */
+.center,#shelf,#board{pointer-events:auto!important}
+.piece:not(.freezeLocked):not(.freezeHidden){pointer-events:auto!important;touch-action:none!important}
+</style>
 <script>
 (()=>{
-  const VERSION='v2.1.37';
-  function unlockPieceInput(){
+  const VERSION='v2.1.38';
+  /* v2.1.36 proved board routing. Do not touch it. The remaining failure is
+     that a committed chooser can leave the shared paused/input state asleep.
+     Wake that state at the earliest possible moment of a genuine piece press,
+     before the proven v2.1.28 target-level down() handler runs. */
+  window.addEventListener('pointerdown',ev=>{
+    const e=ev.target?.closest?.('.piece');
+    if(!e || e.classList.contains('freezeLocked') || e.classList.contains('freezeHidden')) return;
     try{paused=false;}catch(_){}
-    try{solved=false;}catch(_){}
     try{pauseStarted=0;}catch(_){}
-    try{drag=null;pendingPieceDrag=null;}catch(_){}
     const center=document.querySelector('.center');
+    if(center){center.style.pointerEvents='';center.style.filter='';}
     const sh=document.getElementById('shelf');
     const bd=document.getElementById('board');
-    if(center){center.style.pointerEvents='';center.style.filter='';}
     if(sh)sh.style.pointerEvents='';
     if(bd)bd.style.pointerEvents='';
-    document.querySelectorAll('.piece').forEach(e=>{
-      const id=Number(e.dataset.id);
-      try{if(Number.isFinite(id)&&S?.[id])S[id].locked=false;}catch(_){}
-      e.classList.remove('freezeLocked','freezeHidden');
-      e.style.pointerEvents='';
-      e.style.touchAction='none';
-      try{e.onpointerdown=down;}catch(_){}
-    });
-    const pb=document.getElementById('pause');
-    if(pb)pb.textContent='Ⅱ PAUSE';
-    try{rebuildOcc();}catch(_){}
-  }
-  /* The chooser deliberately pauses the old task. A committed START is the
-     single place that releases that lock for the freshly selected board. */
-  document.getElementById('bsgStart')?.addEventListener('click',()=>{
-    setTimeout(unlockPieceInput,20);
-    setTimeout(unlockPieceInput,120);
-  });
-  document.getElementById('startTask')?.addEventListener('click',()=>{
-    setTimeout(unlockPieceInput,20);
-    setTimeout(unlockPieceInput,120);
-  });
-  document.title='ANSSIPASI '+VERSION+' · SHELF INPUT UNLOCK';
+    e.style.pointerEvents='';
+    try{e.onpointerdown=down;}catch(_){}
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · PIECE POINTER WAKEUP';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
