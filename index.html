@@ -8057,9 +8057,7 @@ body.partialMode #board::before{
   }
 
   function partialTask(){
-    const t=PARTIAL_TASKS[partialIndex%PARTIAL_TASKS.length];
-    window.__anssipasiPartialTask=t;
-    return t;
+    return PARTIAL_TASKS[partialIndex%PARTIAL_TASKS.length];
   }
 
   function partialMeta(){
@@ -8447,13 +8445,13 @@ body.partialMode #board::before{
   ];
   const PARTIAL_SET=new Set(PARTIAL_CELLS.map(([x,y])=>`${x},${y}`));
 
-  /* Use the authoritative P001-P030 bank selected by the earlier PARTIAL engine. */
-  const currentPartialIds=()=>[...(window.__anssipasiPartialTask?.ids||[1,2,9,10,12])];
+  /* A verified 20-square solvable CLASSIC-16 test set for the locked target. */
+  const PARTIAL_IDS=[2,5,9,12];
 
   const isPartial=()=>document.body.classList.contains('partialMode');
 
   function rebuildPartialPieces(){
-    ids=currentPartialIds();
+    ids=[...PARTIAL_IDS];
     S={};
     document.querySelectorAll('.piece').forEach(e=>e.remove());
     ids.forEach(id=>{
@@ -8475,11 +8473,8 @@ body.partialMode #board::before{
       solved=false;
       paused=false;
       rebuildPartialPieces();
-      const t=window.__anssipasiPartialTask;
-      const taskNo=document.querySelector('#sideScore .fieldTaskNo');
-      if(taskNo&&t)taskNo.textContent='TASK '+t.id;
       const meta=document.querySelector('#sideScore .v12meta');
-      if(meta&&t)meta.innerHTML='<b>'+t.difficulty+'</b><br>PIECES '+t.ids.length+'<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET '+fmt(t.target);
+      if(meta)meta.innerHTML='<div class="fieldTaskNo">TASK P001</div><b>PARTIAL TEST</b><br>PIECES 4<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET 05:00';
       const scoreLive=document.getElementById('scoreLive');
       if(scoreLive)scoreLive.textContent='0';
       score=0;moves=0;t0=Date.now();totalPaused=0;
@@ -8989,11 +8984,10 @@ body.partialMode #board > .partialCell{visibility:visible!important}
     });
 
     /* Keep the right-hand metadata aligned with the active PARTIAL test task. */
-    const t=window.__anssipasiPartialTask;
     const taskNo=document.querySelector('#sideScore .fieldTaskNo');
-    if(taskNo&&t) taskNo.textContent='TASK '+t.id;
+    if(taskNo) taskNo.textContent='TASK P001';
     const meta=document.querySelector('#sideScore .v12meta');
-    if(meta&&t) meta.innerHTML='<b>'+t.difficulty+'</b><br>PIECES '+t.ids.length+'<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET '+fmt(t.target);
+    if(meta) meta.innerHTML='<b>EASY ★</b><br>PIECES 4<br>CLASSIC 16<br>PARTIAL · 20 SQUARES<br>TARGET 05:00';
   }
 
   function restoreNormal293(){
@@ -9498,10 +9492,10 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 </script>
 
 
-<!-- ANSSIPASI v2.1.30 SAFE PARTIAL BANK INTEGRATION -->
+<!-- ANSSIPASI v2.1.31 EXACT v2.1.28 STABILITY RESTORE -->
 <script>
 (()=>{
- document.title='ANSSIPASI v2.1.30 · SAFE PARTIAL BANK';
- document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.30');
+ document.title='ANSSIPASI v2.1.31 · v2.1.28 STABILITY RESTORE';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.31');
 })();
 </script>
