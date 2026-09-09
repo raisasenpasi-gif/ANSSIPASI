@@ -48,6 +48,14 @@ button{font-size:8px;padding:6px 5px}
 <section class=center><div id=sideScore><button id=switchSides>⇆ SWITCH</button><div class=ssLabel>LIVE SCORE</div><div id=scoreLive>0</div><div class=ssSmall>Provisional feel-test score</div></div><div id=bw><div id=board></div><div id=dropHint>RELEASE FINGER = DROP</div></div><div id=shelf><div class=shelft>PIECE SHELF <button id="switchMobile" class="miniSwitch">⇆ SWITCH</button></div></div></section>
 <section class=panel><h3>FEEL TEST</h3><div class=metric>TIME<div class=big id=time>00:00</div></div><div class=metric>MOVES<div class=big id=moves>0</div></div><div class=info id=info><b>💡 INFO</b><br>Pick up a piece and test the feel.</div></section></main>
 <div id=tools><button id=rot>↻ ROTATE</button><button id=flp>⇋ FLIP</button><button id=back>↩ SHELF</button></div>
+<div id="piecePortal2116"></div>
+<style>
+#piecePortal2116{position:fixed;inset:0;z-index:100000!important;pointer-events:none!important;overflow:visible!important;isolation:isolate}
+#piecePortal2116>.piece,#piecePortal2116>.piece.sel{z-index:1!important;pointer-events:auto!important}
+#tools{z-index:100100!important}
+#taskCard,#solvedCard,#nextConfirm,#freezeChooser,#freezeWait,#correctCard,#sessionComplete,#quitConfirm,#stopConfirm228,#boardSwitchShield211,#boardSessionGate{z-index:200000!important}
+</style>
+<script>window.__piecePortal2116=document.getElementById('piecePortal2116');</script>
 
 <style>
 #solvedCard{
@@ -192,7 +200,7 @@ function choose(id){
  requestAnimationFrame(positionTools);
 }
 function clear(id){S[id].place=null;rebuildOcc(id)}
-function down(ev){if(paused||solved)return;let id=+ev.currentTarget.dataset.id;ev.currentTarget._tapStart=[ev.clientX,ev.clientY,Date.now()];choose(id);drag=id;document.querySelector("#tools")?.classList.add("dragHidden");let e=ev.currentTarget,r=e.getBoundingClientRect();off=[ev.clientX-r.left,ev.clientY-r.top];if(S[id].place)clear(id);document.body.append(e);e.style.position="fixed";e.style.transform="scale(1)";e.style.zIndex=1000;move(ev);try{e.setPointerCapture(ev.pointerId)}catch(_){/* capture is optional */}}
+function down(ev){if(paused||solved)return;let id=+ev.currentTarget.dataset.id;ev.currentTarget._tapStart=[ev.clientX,ev.clientY,Date.now()];choose(id);drag=id;document.querySelector("#tools")?.classList.add("dragHidden");let e=ev.currentTarget,r=e.getBoundingClientRect();off=[ev.clientX-r.left,ev.clientY-r.top];if(S[id].place)clear(id);(window.__piecePortal2116||document.body).append(e);e.style.position="fixed";e.style.transform="scale(1)";e.style.zIndex=1000;move(ev);try{e.setPointerCapture(ev.pointerId)}catch(_){/* capture is optional */}}
 function move(ev){if(drag==null)return;let e=document.querySelector(`[data-id="${drag}"]`);e.style.left=ev.clientX-off[0]+"px";e.style.top=ev.clientY-off[1]+"px"}
 addEventListener("pointermove",move);
 addEventListener("pointerup",(ev)=>{
@@ -286,7 +294,7 @@ function home(id,msg){
  }else{
    // Invalid landing is only a preview failure: keep the piece lifted/floating.
    clear(id);
-   document.body.append(e);
+   (window.__piecePortal2116||document.body).append(e);
    Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:1000});
    buzz([12,35,12]);
    info.innerHTML="<b>⚠ CAN’T DROP PIECE HERE</b><br>Release was invalid. Piece stays lifted; move, rotate or flip it. Cost 0.";
@@ -297,7 +305,7 @@ function transform(kind){
  let id=sel,e=document.querySelector(`[data-id="${id}"]`),r=e.getBoundingClientRect();
  // Once transformed, the piece is "in hand": it may temporarily overlap anything.
  if(S[id].place)clear(id);
- document.body.append(e);
+ (window.__piecePortal2116||document.body).append(e);
  Object.assign(e.style,{position:"fixed",left:r.left+"px",top:r.top+"px",transform:"scale(1)",zIndex:1000});
  S[id].c=kind=="r"?norm(S[id].c.map(q=>[-q[1],q[0]])):kind=="l"?norm(S[id].c.map(q=>[q[1],-q[0]])):norm(S[id].c.map(q=>[-q[0],q[1]]));
  render(id);
@@ -2732,7 +2740,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
       clear(id);
     }
 
-    document.body.append(e);
+    (window.__piecePortal2116||document.body).append(e);
 
     if(kind==='r'){
       S[id].c=norm(S[id].c.map(q=>[-q[1],q[0]]));
@@ -2991,7 +2999,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
       clear(id);
     }
 
-    document.body.append(e);
+    (window.__piecePortal2116||document.body).append(e);
 
     if(kind==='r'){
       S[id].c=norm(S[id].c.map(q=>[-q[1],q[0]]));
@@ -8465,7 +8473,7 @@ body.partialMode #board::before{
       checkSolved();
     }else{
       clear(id);
-      document.body.append(e);
+      (window.__piecePortal2116||document.body).append(e);
       Object.assign(e.style,{
         position:'fixed',
         left:r.left+'px',
@@ -9390,5 +9398,17 @@ body > .piece.sel{
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
   });
+})();
+</script>
+
+
+<!-- ANSSIPASI v2.1.16 PIECE PORTAL ROOT FIX
+     Every floating/dragged piece is now reparented into one dedicated fixed top-layer portal.
+     This bypasses historical gameplay stacking contexts while preserving board/shelf drops. -->
+<script>
+(()=>{
+ const VERSION='v2.1.16';
+ document.title='ANSSIPASI '+VERSION+' · PIECE PORTAL ROOT FIX';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;});
 })();
 </script>
