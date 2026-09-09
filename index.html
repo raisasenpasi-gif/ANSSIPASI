@@ -9076,7 +9076,7 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 </div></div>
 <script>
 (()=>{
-  const VERSION='v2.1.02';
+  const VERSION='v2.1.03';
   const gate=document.getElementById('boardSessionGate');
   const gateName=document.getElementById('bsgBoardName');
   let pendingButton=null;
@@ -9106,7 +9106,14 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     const btn=pendingButton;
     if(!btn)return;
     const count=choice.dataset.bsgCount;
-    gate.style.display='none';
+    const isPartial=btn.id==='partialBtn';
+    const partialBoard=isPartial?document.getElementById('board'):null;
+
+    /* v2.1.03: when moving JUMBO -> PARTIAL, keep the gate covering the board
+       and hide the board itself until PARTIAL has completed its first stable
+       FULL-scale layout. This removes the one-frame small-board flash. */
+    if(isPartial && partialBoard) partialBoard.style.visibility='hidden';
+    if(!isPartial) gate.style.display='none';
 
     /* Let the board's proven original handler run exactly once. */
     bypass=true;
@@ -9116,11 +9123,17 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     setTimeout(()=>{
       const oldChoice=document.querySelector('#taskCountChooser [data-count="'+count+'"]');
       if(oldChoice) oldChoice.click();
-      /* PARTIAL's board handler does not natively call showTaskCard. Ensure its
-         task card is visible after the existing session state has been set. */
-      if(btn.id==='partialBtn'){
+      if(isPartial){
         const card=document.getElementById('taskCard');
         if(card) card.style.display='flex';
+
+        /* Wait through the legacy PARTIAL redraw/overlay pass before revealing.
+           By the time the second frame paints, setPartialBoardSize() and the
+           silhouette overlay are both using the accepted large FULL cell size. */
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          if(partialBoard) partialBoard.style.visibility='';
+          gate.style.display='none';
+        }));
       }
     },0);
   }));
@@ -9129,10 +9142,12 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     ev.preventDefault();ev.stopPropagation();closeGate();
   });
 
-  document.title='ANSSIPASI '+VERSION+' · BOARD SESSION GATE';
+  document.title='ANSSIPASI '+VERSION+' · PARTIAL FIRST-PAINT FIX';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
   });
 })();
 </script>
 
+
+<!-- ANSSIPASI v2.1.03: PARTIAL first-paint lock. JUMBO->PARTIAL no longer exposes the inherited small JUMBO geometry before the accepted large PARTIAL geometry is ready. Session gates and gameplay otherwise unchanged. -->
