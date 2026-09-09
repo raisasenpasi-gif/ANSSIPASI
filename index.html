@@ -9178,7 +9178,7 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     taskTitleEl.textContent=jumbo?'TASK J001':'TASK P001';
     taskMetaEl.innerHTML=jumbo
       ? 'JUMBO BOARD · 49 SQUARES<br>MASTER 20<br>10 PIECES<br>EASY ★<br>TARGET TIME 08:00<br><span class="bsgPerfect">🌟 PERFECT SOLVE +1000</span>'
-      : 'PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span class="bsgPerfect">🌟 PERFECT SOLVE +1000</span>';
+      : 'PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>5 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span class="bsgPerfect">🌟 PERFECT SOLVE +1000</span>';
   }
   function openGate(btn){
     pendingButton=btn;selectedCount=null;paintGate(btn);
@@ -9212,7 +9212,10 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     if(isPartial&&partialBoard)partialBoard.style.visibility='hidden';
 
     bypass=true;
-    try{btn.click();}finally{bypass=false;}
+    try{
+      if(btn.id==='jumboBtn' && typeof btn.onclick==='function') btn.onclick.call(btn);
+      else btn.click();
+    }finally{bypass=false;}
 
     /* Configure the real existing session engine, then press its START TASK.
        This keeps session counters/4EVER behavior identical to FULL. */
@@ -9330,102 +9333,7 @@ body > .piece.sel{
 
 
 <!-- v2.1.17 obsolete click suppressor removed in v2.1.21 -->
-<!-- ANSSIPASI v2.1.18 ROBUST TRIPLE TAP + CLICK-THROUGH ROOT FIX
-     Unifies 1/2/3 tap recognition with a slightly wider mobile-safe window and
-     blocks Android's synthetic click at the exact piece-touch coordinate even
-     if the third tap sends the piece to SHELF before that click is dispatched. -->
-<script>
-(()=>{
-  const VERSION='v2.1.18';
-  const TAP_WINDOW=520;
-  let seq={id:null,count:0,last:0,preFlip:null,timer:null};
-  let lastPieceUp={x:-9999,y:-9999,until:0};
-
-  function cloneCells(a){return Array.isArray(a)?a.map(q=>[q[0],q[1]]):null;}
-  function resetSeq(){
-    if(seq.timer) clearTimeout(seq.timer);
-    seq={id:null,count:0,last:0,preFlip:null,timer:null};
-    try{
-      if(tapState?.timer) clearTimeout(tapState.timer);
-      tapState={id:null,count:0,timer:null};
-    }catch(_){ }
-  }
-
-  /* One authoritative tap recognizer for every board mode. */
-  try{
-    gestureTap=function(id){
-      if(paused||solved||id==null||!S[id]) return;
-      const now=performance.now();
-      if(seq.id!==id || now-seq.last>TAP_WINDOW){
-        resetSeq();
-        seq.id=id; seq.count=1; seq.last=now;
-        choose(id);
-      }else{
-        seq.count++; seq.last=now;
-        if(seq.count===2){
-          choose(id);
-          seq.preFlip=cloneCells(S[id]?.c||P[id]);
-          transform('f');
-          moves+=.5;
-          const ml=document.getElementById('moves'); if(ml) ml.textContent=moves;
-          try{buzz([10,25,10]);}catch(_){ }
-        }else if(seq.count>=3){
-          if(seq.preFlip && S[id]) S[id].c=cloneCells(seq.preFlip);
-          choose(id);
-          home(id,false);
-          moves+=.5;
-          const ml=document.getElementById('moves'); if(ml) ml.textContent=moves;
-          if(info) info.innerHTML='<b>↩ SHELF · 3 TAPS</b><br>Shortcut.';
-          try{buzz([10,25,10]);}catch(_){ }
-          resetSeq();
-          return;
-        }
-      }
-      if(seq.timer) clearTimeout(seq.timer);
-      seq.timer=setTimeout(resetSeq,TAP_WINDOW+40);
-    };
-  }catch(_){ }
-
-  /* Record every piece pointer-up before the piece may disappear/reparent. */
-  window.addEventListener('pointerup',ev=>{
-    const piece=ev.target?.closest?.('.piece');
-    if(!piece) return;
-    lastPieceUp={x:ev.clientX,y:ev.clientY,until:performance.now()+850};
-  },true);
-
-  /* Android may synthesize a click onto whatever becomes exposed under the
-     finger after SHELF. Swallow only clicks at the just-used piece coordinate. */
-  window.addEventListener('click',ev=>{
-    /* Never swallow intentional gameplay-control clicks. In v2.1.18 a recent
-       piece pointer-up could make the synthetic-click guard eat a BOARD-mode
-       click, leaving the historical boardSwitchShield visible as a blank page. */
-    if(ev.target?.closest?.('#modeChooser,#fullBtn,#jumboBtn,#partialBtn,#startTask,#redoTop,#nextTop,#sessionNew,#nextCorrect,#pause,#tools,header button')){
-      lastPieceUp.until=0;
-      return;
-    }
-    if(performance.now()>lastPieceUp.until) return;
-    const dx=ev.clientX-lastPieceUp.x, dy=ev.clientY-lastPieceUp.y;
-    if(dx*dx+dy*dy<=18*18){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      lastPieceUp.until=0;
-    }
-  },true);
-
-  document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#startTask,#redoTop,#nextTop,#sessionNew,#fullBtn,#jumboBtn,#partialBtn,#nextCorrect')){
-      lastPieceUp.until=0;
-      resetSeq();
-    }
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · ROBUST TRIPLE TAP FIX';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
-})();
-</script>
-
+<!-- v2.1.18 removed in v2.1.25: obsolete competing gesture/click layer -->
 <!-- ANSSIPASI v2.1.21 AUTHORITATIVE BOARD SWITCH RESET
      v2.1.17's global post-triple click suppressor and v2.1.20's pointerdown
      board-hiding guard were removed. JUMBO/PARTIAL now use only the proven
@@ -9462,49 +9370,83 @@ body > .piece.sel{
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.24 TAP-IS-NOT-DROP ROOT FIX -->
+<!-- ANSSIPASI v2.1.25 SINGLE GESTURE OWNER + BOARD MODE FIX -->
+<style>
+/* While a piece tap sequence owns the finger, BOARD choices cannot become the
+   target of Android's synthetic post-touch click. */
+html.pieceGestureActive #modeChooser button{pointer-events:none!important}
+</style>
 <script>
 (()=>{
-  const VERSION='v2.1.24';
-  const TAP_WINDOW=650;
+  const VERSION='v2.1.25';
+  const TAP_WINDOW=560;
   let seq={id:null,count:0,last:0,preFlip:null,timer:null};
-  function cloneCells(a){return Array.isArray(a)?a.map(q=>[q[0],q[1]]):null;}
-  function resetSeq(){
+  const clone=a=>Array.isArray(a)?a.map(q=>[q[0],q[1]]):null;
+  function unlockBoardSoon(ms=220){
+    clearTimeout(window.__boardUnlock2125);
+    window.__boardUnlock2125=setTimeout(()=>document.documentElement.classList.remove('pieceGestureActive'),ms);
+  }
+  function resetSeq(unlock=true){
     if(seq.timer)clearTimeout(seq.timer);
     seq={id:null,count:0,last:0,preFlip:null,timer:null};
-    try{if(typeof tapState!=='undefined'&&tapState?.timer)clearTimeout(tapState.timer);if(typeof tapState!=='undefined')tapState={id:null,count:0,timer:null};}catch(_){}
+    try{if(tapState?.timer)clearTimeout(tapState.timer);tapState={id:null,count:0,timer:null};}catch(_){}
+    if(unlock) unlockBoardSoon();
   }
-  function eatThirdTapClick(){
-    const p=window.__pieceTapPoint2124;if(!p)return;
-    document.getElementById('tapClickEater2124')?.remove();
-    const e=document.createElement('div');e.id='tapClickEater2124';
-    Object.assign(e.style,{position:'fixed',left:(p.x-24)+'px',top:(p.y-24)+'px',width:'48px',height:'48px',zIndex:'199999',pointerEvents:'auto',background:'transparent',touchAction:'none'});
-    const kill=()=>{try{e.remove()}catch(_){}};
-    e.addEventListener('click',ev=>{ev.preventDefault();ev.stopImmediatePropagation();kill();},true);
-    document.body.append(e);setTimeout(kill,320);
-  }
+  /* One and only active gestureTap implementation. New piece always starts a
+     completely fresh sequence. Dragging never counts as a tap (core pointerup
+     already separates wasTap from DROP). */
   gestureTap=function(id){
     if(paused||solved||id==null||!S[id])return;
     const now=performance.now();
-    if(seq.id!==id||now-seq.last>TAP_WINDOW){resetSeq();seq.id=id;seq.count=1;seq.last=now;choose(id);}
-    else{
+    document.documentElement.classList.add('pieceGestureActive');
+    if(seq.id!==id || now-seq.last>TAP_WINDOW){
+      resetSeq(false); seq.id=id;seq.count=1;seq.last=now;choose(id);
+    }else{
       seq.count++;seq.last=now;
       if(seq.count===2){
-        choose(id);seq.preFlip=cloneCells(S[id].c);transform('f');moves+=.5;
-        const ml=document.getElementById('moves');if(ml)ml.textContent=moves;try{buzz([10,25,10]);}catch(_){}
-      }else if(seq.count>=3){
-        if(seq.preFlip&&S[id])S[id].c=cloneCells(seq.preFlip);
-        eatThirdTapClick();choose(id);home(id,false);moves+=.5;
+        seq.preFlip=clone(S[id].c);choose(id);transform('f');moves+=.5;
         const ml=document.getElementById('moves');if(ml)ml.textContent=moves;
-        if(info)info.innerHTML='<b>↩ SHELF · 3 TAPS</b><br>Shortcut.';try{buzz([10,25,10]);}catch(_){}
-        resetSeq();return;
+        try{buzz([10,25,10]);}catch(_){}
+      }else if(seq.count>=3){
+        if(seq.preFlip&&S[id])S[id].c=clone(seq.preFlip);
+        choose(id);home(id,false);moves+=.5;
+        const ml=document.getElementById('moves');if(ml)ml.textContent=moves;
+        if(info)info.innerHTML='<b>↩ SHELF · 3 TAPS</b><br>Shortcut.';
+        try{buzz([10,25,10]);}catch(_){}
+        resetSeq(false);unlockBoardSoon(420);return;
       }
     }
-    if(seq.timer)clearTimeout(seq.timer);seq.timer=setTimeout(resetSeq,TAP_WINDOW+50);
+    if(seq.timer)clearTimeout(seq.timer);
+    seq.timer=setTimeout(()=>resetSeq(true),TAP_WINDOW+40);
   };
-  window.addEventListener('pointerdown',ev=>{if(!ev.target?.closest?.('.piece'))resetSeq();},true);
-  document.title='ANSSIPASI '+VERSION+' · TAP IS NOT DROP';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;});
+
+  /* A genuine BOARD press starts outside a piece, so it explicitly clears any
+     expired gesture lock before normal board routing. */
+  window.addEventListener('pointerdown',ev=>{
+    const b=ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
+    if(!b)return;
+    document.documentElement.classList.remove('pieceGestureActive');
+    resetSeq(false);
+  },true);
+
+  /* Keep selector highlight synchronized with the board that actually started.
+     PARTIAL is authoritative when partialMode class is present. JUMBO is
+     recognized from its 7x7 board/meta immediately after START. */
+  function mark(mode){
+    const f=document.getElementById('fullBtn'),j=document.getElementById('jumboBtn'),p=document.getElementById('partialBtn');
+    [f,j,p].forEach(x=>x?.classList.remove('on'));
+    (mode==='partial'?p:mode==='jumbo'?j:f)?.classList.add('on');
+  }
+  document.addEventListener('click',ev=>{
+    const b=ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn');if(!b)return;
+    setTimeout(()=>{
+      if(document.body.classList.contains('partialMode'))mark('partial');
+      else if(b.id==='jumboBtn')mark('jumbo');
+      else if(b.id==='fullBtn')mark('full');
+    },40);
+  },false);
+
+  document.title='ANSSIPASI '+VERSION+' · SINGLE GESTURE OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
-
