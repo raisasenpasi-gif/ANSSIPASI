@@ -8997,69 +8997,83 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.0.98: board-specific NUMBER OF TASKS chooser for JUMBO + PARTIAL.
-     FULL keeps its established flow. PARTIAL geometry/scale is untouched. -->
+<!-- ANSSIPASI v2.0.99: persistent board-specific NUMBER OF TASKS chooser.
+     JUMBO/PARTIAL now keep the chooser visible until the player selects a count.
+     FULL flow and PARTIAL geometry are unchanged. -->
 <script>
 (()=>{
-  const VERSION='v2.0.98';
+  const VERSION='v2.0.99';
   const taskCard=document.getElementById('taskCard');
   const taskTitle=document.getElementById('taskTitle');
   const taskMeta=document.getElementById('taskMeta');
   const startBtn=document.getElementById('startTask');
   const progress=document.getElementById('sessionProgressCard');
-  const fullBtn=document.getElementById('fullBtn');
-  const jumboBtn=document.getElementById('jumboBtn');
+  const chooser=document.getElementById('taskCountChooser');
   const partialBtn=document.getElementById('partialBtn');
+  const jumboBtn=document.getElementById('jumboBtn');
+  let armedMode=null;
+  let raf=0;
 
-  function chooser(){ return document.getElementById('taskCountChooser'); }
-
-  function forceChooser(mode){
-    const c=chooser();
-    if(!taskCard || !c) return;
-
-    // Keep the board mode that was just selected. Only expose the existing
-    // NUMBER OF TASKS card; do not reset board geometry or task pieces here.
+  function modeMeta(mode){
     if(mode==='partial'){
       if(taskTitle) taskTitle.textContent='TASK P001';
       if(taskMeta) taskMeta.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+    }else if(mode==='jumbo'){
+      // JUMBO's own historical handler supplies the current J-task title/meta.
+      // Only restore generic metadata if an older session decorator erased it.
+      if(taskTitle && !/^TASK J/i.test(taskTitle.textContent||'')) taskTitle.textContent='TASK J001';
+      if(taskMeta && !/JUMBO BOARD/i.test(taskMeta.innerHTML||''))
+        taskMeta.innerHTML='JUMBO BOARD · 49 SQUARES<br>MASTER 20<br>10 PIECES<br>EASY ★<br>TARGET TIME 08:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
     }
-
-    taskCard.style.display='flex';
-    c.style.display='block';
-    c.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
-    if(progress) progress.style.display='none';
-    if(startBtn) startBtn.disabled=true;
-    try{ paused=true; taskCardPauseAt=Date.now(); }catch(_){ }
   }
 
-  // Capture at document level so this survives older button handlers that use
-  // stopImmediatePropagation on the button itself. Delayed execution lets the
-  // selected board finish its own mode switch first.
+  function holdChooser(){
+    if(!armedMode || !taskCard || !chooser) return;
+    taskCard.style.setProperty('display','flex','important');
+    chooser.style.setProperty('display','block','important');
+    if(progress) progress.style.setProperty('display','none','important');
+    if(startBtn) startBtn.disabled=true;
+    chooser.querySelectorAll('[data-count]').forEach(b=>b.classList.remove('on'));
+    modeMeta(armedMode);
+    raf=requestAnimationFrame(holdChooser);
+  }
+
+  function arm(mode){
+    armedMode=mode;
+    cancelAnimationFrame(raf);
+    // Let the selected board finish rebuilding first, then own the card state.
+    setTimeout(()=>{ if(armedMode===mode) holdChooser(); },0);
+  }
+
   document.addEventListener('click',ev=>{
-    const p=ev.target?.closest?.('#partialBtn');
-    const j=ev.target?.closest?.('#jumboBtn');
-    if(!p && !j) return;
-    const mode=p?'partial':'jumbo';
-    setTimeout(()=>forceChooser(mode),90);
-    setTimeout(()=>forceChooser(mode),220);
+    if(ev.target?.closest?.('#jumboBtn')) arm('jumbo');
+    else if(ev.target?.closest?.('#partialBtn')) arm('partial');
   },true);
 
-  // If a count is chosen while PARTIAL is active, keep the card metadata on
-  // PARTIAL after the legacy chooser decorates the session row.
-  chooser()?.addEventListener('click',ev=>{
-    if(!ev.target?.closest?.('[data-count]')) return;
-    if(!partialBtn?.classList.contains('on')) return;
+  chooser?.addEventListener('click',ev=>{
+    const b=ev.target?.closest?.('[data-count]');
+    if(!b || !armedMode) return;
+    const mode=armedMode;
+    // Release after the legacy count handler has updated the session target.
     setTimeout(()=>{
-      if(taskTitle) taskTitle.textContent='TASK P001';
-      if(taskMeta) taskMeta.innerHTML='PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span style="color:#e43f7f">🌟 PERFECT SOLVE +1000</span>';
+      armedMode=null;
+      cancelAnimationFrame(raf);
+      chooser.style.removeProperty('display');
+      if(progress) progress.style.removeProperty('display');
+      if(startBtn) startBtn.disabled=false;
+      modeMeta(mode);
     },0);
+  },false);
+
+  startBtn?.addEventListener('click',()=>{
+    armedMode=null; cancelAnimationFrame(raf);
   },true);
 
   document.title='ANSSIPASI '+VERSION;
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-      c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-    });
-  }));
+  const sync=()=>document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+  sync(); requestAnimationFrame(()=>requestAnimationFrame(sync)); setTimeout(sync,250);
 })();
 </script>
+
