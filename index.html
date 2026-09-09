@@ -571,7 +571,7 @@ document.getElementById("nextTask").onclick=()=>resetRun(true);
 <style>
 #sideScore .v12meta{font-size:9px;line-height:1.45;text-align:left;margin:8px 5px;padding-top:7px;border-top:1px solid #efd4de}
 #sideScore .v12meta b{color:#9b4e6c}.perfectLine{font-size:18px;font-weight:900;color:#e43f7f;margin:8px 0}
-#taskCard{position:fixed;inset:0;z-index:450;background:rgba(255,245,249,.88);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center}
+#taskCard{position:fixed;inset:0;z-index:450;background:#fdebf2;backdrop-filter:none;display:none;align-items:center;justify-content:center}
 #taskCard .card{background:#fff;border:2px solid #efb8ce;border-radius:24px;padding:20px 28px;text-align:center;box-shadow:0 18px 50px #8b466044;min-width:280px}
 #taskCard h1{margin:3px 0 10px;color:#e43f7f}#taskCard .taskmeta{line-height:1.7;font-weight:800}#taskCard button{margin-top:14px;background:#e43f7f;color:white;padding:11px 24px}
 .safeFlash{animation:safePulse .22s ease}@keyframes safePulse{50%{filter:drop-shadow(0 0 12px #e43f7f)}}
@@ -8139,10 +8139,12 @@ body.partialMode #board::before{
   }
 
   partialBtn?.addEventListener('click',ev=>{
-    /* Do not stop propagation here. The later session-card controller must
-       receive the same click so it can paint P001 metadata and arm START TASK.
-       The early paint shield already hides this immediate board rebuild. */
+    /* v2.1.32: a real finger click only opens the PARTIAL session card.
+       Do not rebuild the board until START TASK re-fires this button with
+       btn.click() (isTrusted === false). This removes the PARTIAL ghost board
+       before the chooser and prevents half-switched board state. */
     ev.preventDefault();
+    if(ev.isTrusted) return;
     enterPartial();
   },true);
 
@@ -9497,5 +9499,87 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 (()=>{
  document.title='ANSSIPASI v2.1.31 · v2.1.28 STABILITY RESTORE';
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.31');
+})();
+</script>
+
+
+<!-- ANSSIPASI v2.1.32 AUTHORITATIVE POINTER DRAG + DEFERRED PARTIAL SWITCH -->
+<script>
+(()=>{
+  const VERSION='v2.1.32';
+  let g=null;
+  const modalVisible=()=>{
+    const ids=['taskCard','boardSessionGate','pauseCard','solvedCard','nextConfirm','freezeChooser','freezeWait','correctCard','sessionComplete','quitConfirm','stopConfirm228'];
+    return ids.some(id=>{const e=document.getElementById(id);return e&&getComputedStyle(e).display!=='none'&&e.offsetParent!==null});
+  };
+  function pieceFrom(ev){ return ev.target?.closest?.('.piece')||null; }
+  function endGesture(){ g=null; try{pendingPieceDrag=null}catch(_){ } }
+
+  /* One pointer stream owns every piece interaction. Capture phase prevents
+     the many historical target/document handlers from competing with it. */
+  window.addEventListener('pointerdown',ev=>{
+    const e=pieceFrom(ev); if(!e||modalVisible()) return;
+    const id=+e.dataset.id; if(!S[id]||S[id].locked) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    const r=e.getBoundingClientRect();
+    g={id,pid:ev.pointerId,sx:ev.clientX,sy:ev.clientY,offX:ev.clientX-r.left,offY:ev.clientY-r.top,moved:false};
+    try{choose(id)}catch(_){ }
+  },true);
+
+  window.addEventListener('pointermove',ev=>{
+    if(!g||ev.pointerId!==g.pid) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    if(!g.moved){
+      if(Math.hypot(ev.clientX-g.sx,ev.clientY-g.sy)<7) return;
+      const e=document.querySelector(`[data-id="${g.id}"]`); if(!e){endGesture();return;}
+      g.moved=true;
+      try{ if(S[g.id].place) clear(g.id); }catch(_){ }
+      try{ drag=g.id; }catch(_){ }
+      document.querySelector('#tools')?.classList.add('dragHidden');
+      (window.__piecePortal2116||document.body).append(e);
+      Object.assign(e.style,{position:'fixed',transform:'scale(1)',transformOrigin:'top left',zIndex:1000});
+    }
+    const e=document.querySelector(`[data-id="${g.id}"]`); if(!e)return;
+    e.style.left=(ev.clientX-g.offX)+'px';
+    e.style.top=(ev.clientY-g.offY)+'px';
+  },true);
+
+  window.addEventListener('pointerup',ev=>{
+    if(!g||ev.pointerId!==g.pid) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    const id=g.id, moved=g.moved, x=ev.clientX, y=ev.clientY;
+    if(moved){
+      try{ drop(id); }catch(_){ try{home(id,false)}catch(__){} }
+      try{ drag=null; }catch(_){ }
+      document.querySelector('#tools')?.classList.remove('dragHidden');
+      try{requestAnimationFrame(positionTools)}catch(_){ }
+    }else{
+      window.__pieceTapPoint2126={x,y};
+      try{ gestureTap(id); }catch(_){ }
+      try{requestAnimationFrame(positionTools)}catch(_){ }
+    }
+    endGesture();
+  },true);
+
+  window.addEventListener('pointercancel',ev=>{
+    if(!g||ev.pointerId!==g.pid) return;
+    ev.stopImmediatePropagation();
+    const id=g.id;
+    if(g.moved){ try{home(id,false)}catch(_){ } }
+    try{drag=null}catch(_){ }
+    document.querySelector('#tools')?.classList.remove('dragHidden');
+    endGesture();
+  },true);
+
+  /* Genuine board-selector pointerdown is stopped before old document-level
+     preview handlers can repaint another board underneath the chooser. Do not
+     preventDefault, so the normal click still opens the correct chooser. */
+  window.addEventListener('pointerdown',ev=>{
+    if(!ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')) return;
+    ev.stopPropagation();
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · POINTER OWNER STABILITY FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
