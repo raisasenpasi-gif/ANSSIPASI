@@ -9055,94 +9055,114 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.02 AUTHORITATIVE BOARD SESSION GATE -->
+<!-- ANSSIPASI v2.1.04 BOARD SESSION CARD PARITY -->
 <style>
-#boardSessionGate{position:fixed;inset:0;z-index:1600;display:none;align-items:center;justify-content:center;background:rgba(255,245,249,.84);backdrop-filter:blur(10px)}
-#boardSessionGate .bsgCard{background:#fff;border:2px solid #efb8ce;border-radius:24px;padding:20px 26px;text-align:center;box-shadow:0 18px 50px #8b466044;min-width:300px}
-#boardSessionGate .bsgBoard{font-size:12px;font-weight:900;color:#e43f7f;margin-bottom:8px;letter-spacing:.2px}
-#boardSessionGate .bsgTitle{font-size:19px;font-weight:900;color:#5c3b49;margin-bottom:13px}
-#boardSessionGate .bsgButtons{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
-#boardSessionGate .bsgButtons button{min-width:52px;padding:9px 11px!important;background:#f3c4d7;color:#5c3b49;font-weight:900}
-#boardSessionGate .bsgCancel{margin-top:12px!important;background:#eee!important;color:#5c3b49!important}
-@media(max-width:850px){#boardSessionGate .bsgCard{min-width:270px;padding:15px 18px}#boardSessionGate .bsgTitle{font-size:16px;margin-bottom:9px}#boardSessionGate .bsgButtons button{font-size:9px!important;min-width:44px;padding:7px 8px!important}}
+#boardSessionGate{position:fixed;inset:0;z-index:1600;display:none;align-items:center;justify-content:center;background:rgba(255,245,249,.88);backdrop-filter:blur(10px)}
+#boardSessionGate .bsgCard{background:#fff;border:2px solid #efb8ce;border-radius:24px;padding:18px 28px;text-align:center;box-shadow:0 18px 50px #8b466044;min-width:420px;max-width:72vw}
+#boardSessionGate .bsgBrand{font-size:12px;font-weight:800;color:#3b2c34;margin-bottom:2px}
+#boardSessionGate .bsgTask{margin:3px 0 8px;color:#e43f7f;font-size:34px;line-height:1.05;font-weight:900}
+#boardSessionGate .bsgMeta{line-height:1.45;font-size:15px;font-weight:800;color:#3b2c34}
+#boardSessionGate .bsgPerfect{color:#e43f7f;font-weight:900}
+#boardSessionGate .bsgChooser{margin:12px 0 4px;padding:10px 12px;background:#fff7fa;border:1px solid #efc8d7;border-radius:14px}
+#boardSessionGate .bsgTitle{font-size:11px;font-weight:900;color:#9b4e6c;margin-bottom:7px;letter-spacing:.2px}
+#boardSessionGate .bsgButtons{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+#boardSessionGate .bsgButtons button{margin:0!important;min-width:52px;padding:8px 11px!important;background:#f3c4d7;color:#5c3b49}
+#boardSessionGate .bsgButtons button.on{background:#e43f7f;color:#fff}
+#boardSessionGate #bsgStart{margin-top:14px;background:#e43f7f;color:white;padding:11px 24px;min-width:176px}
+#boardSessionGate #bsgStart:disabled{opacity:.45}
+@media(max-width:850px){
+ #boardSessionGate .bsgCard{min-width:0;width:58vw;max-width:620px;padding:12px 22px}
+ #boardSessionGate .bsgBrand{font-size:9px}
+ #boardSessionGate .bsgTask{font-size:30px;margin:2px 0 7px}
+ #boardSessionGate .bsgMeta{font-size:12px;line-height:1.32}
+ #boardSessionGate .bsgChooser{margin:8px 0 2px;padding:7px 8px}
+ #boardSessionGate .bsgTitle{font-size:9px;margin-bottom:5px}
+ #boardSessionGate .bsgButtons button{font-size:8px!important;min-width:43px;padding:6px 8px!important}
+ #boardSessionGate #bsgStart{margin-top:10px;padding:9px 22px!important;font-size:10px!important}
+}
 </style>
 <div id="boardSessionGate"><div class="bsgCard">
-  <div class="bsgBoard" id="bsgBoardName">JUMBO 7×7</div>
-  <div class="bsgTitle">NUMBER OF TASKS</div>
-  <div class="bsgButtons">
-    <button data-bsg-count="1">1</button><button data-bsg-count="5">5</button><button data-bsg-count="10">10</button><button data-bsg-count="25">25</button><button data-bsg-count="forever">4EVER</button>
+  <div class="bsgBrand">ANSSIPASI</div>
+  <div class="bsgTask" id="bsgTaskTitle">TASK J001</div>
+  <div class="bsgMeta" id="bsgTaskMeta"></div>
+  <div class="bsgChooser">
+    <div class="bsgTitle">NUMBER OF TASKS</div>
+    <div class="bsgButtons">
+      <button data-bsg-count="1">1</button><button data-bsg-count="5">5</button><button data-bsg-count="10">10</button><button data-bsg-count="25">25</button><button data-bsg-count="forever">4EVER</button>
+    </div>
   </div>
-  <button class="bsgCancel" id="bsgCancel">CANCEL</button>
+  <button id="bsgStart" disabled>START TASK</button>
 </div></div>
 <script>
 (()=>{
-  const VERSION='v2.1.03';
+  const VERSION='v2.1.04';
   const gate=document.getElementById('boardSessionGate');
-  const gateName=document.getElementById('bsgBoardName');
-  let pendingButton=null;
-  let bypass=false;
+  const taskTitleEl=document.getElementById('bsgTaskTitle');
+  const taskMetaEl=document.getElementById('bsgTaskMeta');
+  const startGate=document.getElementById('bsgStart');
+  const countButtons=[...document.querySelectorAll('[data-bsg-count]')];
+  let pendingButton=null,selectedCount=null,bypass=false;
 
+  function paintGate(btn){
+    const jumbo=btn.id==='jumboBtn';
+    taskTitleEl.textContent=jumbo?'TASK J001':'TASK P001';
+    taskMetaEl.innerHTML=jumbo
+      ? 'JUMBO BOARD · 49 SQUARES<br>MASTER 20<br>10 PIECES<br>EASY ★<br>TARGET TIME 08:00<br><span class="bsgPerfect">🌟 PERFECT SOLVE +1000</span>'
+      : 'PARTIAL BOARD · 20 SQUARES<br>CLASSIC 16<br>4 PIECES<br>EASY ★<br>TARGET TIME 05:00<br><span class="bsgPerfect">🌟 PERFECT SOLVE +1000</span>';
+  }
   function openGate(btn){
-    pendingButton=btn;
-    gateName.textContent=btn.id==='jumboBtn'?'JUMBO 7×7':'PARTIAL 20';
-    gate.style.display='flex';
+    pendingButton=btn;selectedCount=null;paintGate(btn);
+    countButtons.forEach(b=>b.classList.remove('on'));
+    startGate.disabled=true;gate.style.display='flex';
     try{paused=true;}catch(_){}
   }
-  function closeGate(){ gate.style.display='none'; pendingButton=null; }
 
-  /* Authoritative interception: JUMBO/PARTIAL cannot start until a session
-     length has been chosen. FULL remains untouched. */
   document.addEventListener('click',ev=>{
     if(bypass)return;
     const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
     if(!btn)return;
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    openGate(btn);
+    ev.preventDefault();ev.stopImmediatePropagation();openGate(btn);
   },true);
 
-  document.querySelectorAll('[data-bsg-count]').forEach(choice=>choice.addEventListener('click',ev=>{
+  countButtons.forEach(choice=>choice.addEventListener('click',ev=>{
     ev.preventDefault();ev.stopPropagation();
-    const btn=pendingButton;
-    if(!btn)return;
-    const count=choice.dataset.bsgCount;
-    const isPartial=btn.id==='partialBtn';
+    selectedCount=choice.dataset.bsgCount;
+    countButtons.forEach(b=>b.classList.toggle('on',b===choice));
+    startGate.disabled=false;
+    try{buzz(18);}catch(_){}
+  }));
+
+  startGate.addEventListener('click',ev=>{
+    ev.preventDefault();ev.stopPropagation();
+    const btn=pendingButton;if(!btn||!selectedCount)return;
+    const count=selectedCount,isPartial=btn.id==='partialBtn';
     const partialBoard=isPartial?document.getElementById('board'):null;
 
-    /* v2.1.03: when moving JUMBO -> PARTIAL, keep the gate covering the board
-       and hide the board itself until PARTIAL has completed its first stable
-       FULL-scale layout. This removes the one-frame small-board flash. */
-    if(isPartial && partialBoard) partialBoard.style.visibility='hidden';
-    if(!isPartial) gate.style.display='none';
+    /* Keep the accepted v2.1.03 first-paint protection. */
+    if(isPartial&&partialBoard)partialBoard.style.visibility='hidden';
 
-    /* Let the board's proven original handler run exactly once. */
     bypass=true;
     try{btn.click();}finally{bypass=false;}
 
-    /* Feed the selection into the existing v2.0.21 session engine. */
+    /* Configure the real existing session engine, then press its START TASK.
+       This keeps session counters/4EVER behavior identical to FULL. */
     setTimeout(()=>{
       const oldChoice=document.querySelector('#taskCountChooser [data-count="'+count+'"]');
-      if(oldChoice) oldChoice.click();
-      if(isPartial){
-        const card=document.getElementById('taskCard');
-        if(card) card.style.display='flex';
+      if(oldChoice)oldChoice.click();
+      const nativeStart=document.getElementById('startTask');
+      if(nativeStart&&!nativeStart.disabled)nativeStart.click();
 
-        /* Wait through the legacy PARTIAL redraw/overlay pass before revealing.
-           By the time the second frame paints, setPartialBoardSize() and the
-           silhouette overlay are both using the accepted large FULL cell size. */
+      if(isPartial){
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
-          if(partialBoard) partialBoard.style.visibility='';
+          if(partialBoard)partialBoard.style.visibility='';
           gate.style.display='none';
         }));
-      }
+      }else gate.style.display='none';
+      pendingButton=null;selectedCount=null;
     },0);
-  }));
-
-  document.getElementById('bsgCancel')?.addEventListener('click',ev=>{
-    ev.preventDefault();ev.stopPropagation();closeGate();
   });
 
-  document.title='ANSSIPASI '+VERSION+' · PARTIAL FIRST-PAINT FIX';
+  document.title='ANSSIPASI '+VERSION+' · BOARD SESSION CARD PARITY';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
   });
@@ -9150,4 +9170,4 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 </script>
 
 
-<!-- ANSSIPASI v2.1.03: PARTIAL first-paint lock. JUMBO->PARTIAL no longer exposes the inherited small JUMBO geometry before the accepted large PARTIAL geometry is ready. Session gates and gameplay otherwise unchanged. -->
+<!-- ANSSIPASI v2.1.04: JUMBO/PARTIAL session cards now mirror FULL task-card content and flow. v2.1.03 PARTIAL first-paint lock retained. -->
