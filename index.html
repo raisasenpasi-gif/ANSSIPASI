@@ -8968,3 +8968,65 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
   }));
 })();
 </script>
+
+<!-- ANSSIPASI v2.0.95: lock PARTIAL 20 to the larger FULL-board cell size regardless of previous BOARD mode. -->
+<script>
+(()=>{
+  const VERSION='v2.0.95';
+  const board=document.getElementById('board');
+  const bw=document.getElementById('bw');
+  const partialBtn=document.getElementById('partialBtn');
+  const CELLS=[
+    [1,0],[2,0],[3,0],
+    [1,1],[2,1],[3,1],[4,1],[5,1],
+    [1,2],[2,2],[3,2],[4,2],[5,2],
+    [0,3],[1,3],[2,3],[4,3],[5,3],
+    [4,4],[5,4]
+  ];
+  if(!board||!bw||!partialBtn) return;
+
+  function preferredFullCell(){
+    const mobile=innerWidth<=850;
+    const n=Math.floor(Math.min((bw.clientWidth-24)/6,(bw.clientHeight-28)/5,mobile?48:58));
+    return Math.max(16,n);
+  }
+
+  function activePartial(){
+    return partialBtn.classList.contains('on') || document.documentElement.classList.contains('v294Partial') || document.body.classList.contains('partialMode');
+  }
+
+  function resizePartialVisuals(){
+    if(!activePartial()) return;
+    const target=preferredFullCell();
+    cell=target;
+    board.style.width=(6*target)+'px';
+    board.style.height=(5*target)+'px';
+
+    document.querySelectorAll('#v294PartialOverlay .v294Cell').forEach((d,i)=>{
+      const q=CELLS[i]; if(!q) return;
+      Object.assign(d.style,{left:(q[0]*target)+'px',top:(q[1]*target)+'px',width:target+'px',height:target+'px'});
+    });
+    document.querySelectorAll('#board > .partialCell').forEach((d,i)=>{
+      const q=CELLS[i]; if(!q) return;
+      Object.assign(d.style,{left:(q[0]*target)+'px',top:(q[1]*target)+'px',width:target+'px',height:target+'px'});
+    });
+
+    ids.forEach(id=>{ try{render(id)}catch(_){} });
+    try{arrange()}catch(_){}
+  }
+
+  function settle(){
+    [0,40,100,180,320,520].forEach(ms=>setTimeout(resizePartialVisuals,ms));
+  }
+
+  partialBtn.addEventListener('pointerdown',settle,true);
+  partialBtn.addEventListener('click',settle,true);
+  window.addEventListener('resize',()=>{ if(activePartial()) setTimeout(resizePartialVisuals,100); });
+  window.addEventListener('orientationchange',()=>{ if(activePartial()) setTimeout(resizePartialVisuals,180); });
+
+  document.title='ANSSIPASI '+VERSION+' · PARTIAL SIZE LOCK';
+  const syncVersion=()=>document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+  requestAnimationFrame(()=>requestAnimationFrame(syncVersion));
+  setTimeout(syncVersion,300);
+})();
+</script>
