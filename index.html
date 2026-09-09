@@ -3,7 +3,7 @@
 <script>document.documentElement.classList.add('v288Boot');</script>
 <style>
 /* v2.0.88 startup paint guard: keep gameplay chrome hidden until TASK card is visible. */
-html.v288Boot body>*{visibility:hidden!important}html.v288Boot #taskCard{visibility:visible!important}
+html.v288Boot body>*{visibility:hidden!important}
 </style><!-- v2.0.65 clean startup baseline: diagnostic overlay removed; game logic unchanged from v2.0.63 --><style>
 *{box-sizing:border-box}body{margin:0;background:#fdebf2;font-family:Arial;color:#3b2c34;touch-action:none;overflow:hidden}
 header{height:58px;background:#fff7fa;display:flex;align-items:center;gap:7px;padding:7px 12px;border-bottom:2px solid #f3bfd2}.brand{font-size:24px;font-weight:900}.tag{font-size:9px;color:#a85c79}.grow{flex:1}
@@ -2177,7 +2177,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
     document.body.classList.add('dragRecovery');
 
     try{
-      const id = drag?.id ?? sel;
+      const id = (typeof drag==='number') ? drag : (drag?.id ?? sel);
       const e = id!=null ? document.querySelector(`[data-id="${id}"]`) : null;
 
       /* A stale drag must never leave an invisible capture or toolbar behind. */
@@ -2189,7 +2189,12 @@ body.dragRecovery #pieceToolbar{display:none!important}
         /* If the piece has no legal placed state, leave it safely floating
            where the player last had it. Never silently send it to SHELF. */
         if(S[id] && !S[id].place && e.parentElement!==shelf){
-          e.style.zIndex=8;
+          try{
+            if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
+            else home(id,false);
+          }catch(_){
+            e.style.zIndex=8;
+          }
         }
       }
 
@@ -2226,7 +2231,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
      the contact mid-drag. */
   window.addEventListener('pointercancel',()=>recoverDrag('pointercancel'),true);
   window.addEventListener('touchcancel',()=>recoverDrag('touchcancel'),true);
-  window.addEventListener('lostpointercapture',()=>recoverDrag('lostcapture'),true);
+  /* v2.1.45: disabled — v2.1.28 intentionally uses no pointer capture. */
 
   /* If the finger/pointer ends but the game engine somehow missed its own
      release handler, clean the stale state immediately afterwards. */
@@ -2251,9 +2256,8 @@ body.dragRecovery #pieceToolbar{display:none!important}
 
   /* Orientation/viewport changes can invalidate the drag coordinates. */
   window.addEventListener('orientationchange',()=>recoverDrag('orientation'),true);
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize',()=>{ if(drag) recoverDrag('viewport-resize'); });
-  }
+  /* v2.1.45: visualViewport resize must not cancel an active finger drag.
+     Mobile browser chrome can resize the visual viewport during normal play. */
 
   /* Watchdog: a drag with no pointer traffic for 1.5 s is almost certainly
      stale. This is deliberately conservative so normal thinking while
@@ -9485,13 +9489,13 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-
-<!-- ANSSIPASI v2.1.44 CLEAN v2.1.28 DRAG RESTORE -->
+<!-- ANSSIPASI v2.1.45 DRAG RECOVERY CLEANUP -->
 <script>
 (()=>{
- document.title='ANSSIPASI v2.1.44 · CLEAN DRAG RESTORE';
- document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
-   c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.44'
- );
+  const VERSION='v2.1.45';
+  document.title='ANSSIPASI '+VERSION+' · DRAG RECOVERY CLEANUP';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
+    c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
+  );
 })();
 </script>
