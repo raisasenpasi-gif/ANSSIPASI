@@ -9182,3 +9182,37 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 
 <!-- ANSSIPASI v2.1.05: PARTIAL START geometry isolation. JUMBO keeps native START TASK; PARTIAL keeps its accepted v2.0.97 large geometry while session count remains configured. -->
 <script>(()=>{const VERSION='v2.1.05';document.title='ANSSIPASI '+VERSION+' · PARTIAL LARGE BOARD LOCK';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();</script>
+
+
+<!-- ANSSIPASI v2.1.06: BOARD SWITCH PRE-PAINT SHIELD.
+     On JUMBO/PARTIAL selection the session card is made visible in the same
+     pointer event before the browser can paint transitional board geometry.
+     PARTIAL board is hidden until its accepted large geometry is ready. -->
+<script>
+(()=>{
+  const VERSION='v2.1.06';
+  const gate=document.getElementById('boardSessionGate');
+  const board=document.getElementById('board');
+
+  document.addEventListener('pointerdown',ev=>{
+    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
+    if(!btn)return;
+
+    /* Older PARTIAL listeners run earlier and may rebuild the board immediately.
+       This listener still runs inside the same pointer event, before the browser
+       paints. Cover that transitional geometry with the session card at once. */
+    if(gate) gate.style.display='flex';
+    if(btn.id==='partialBtn' && board) board.style.visibility='hidden';
+  },true);
+
+  /* If the user chooses JUMBO, never leave a PARTIAL visibility lock behind. */
+  document.addEventListener('click',ev=>{
+    if(ev.target?.closest?.('#jumboBtn') && board) board.style.visibility='';
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · BOARD SWITCH PRE-PAINT FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
