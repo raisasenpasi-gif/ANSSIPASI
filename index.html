@@ -8139,19 +8139,19 @@ body.partialMode #board::before{
   }
 
   partialBtn?.addEventListener('click',ev=>{
-    /* Do not stop propagation here. The later session-card controller must
-       receive the same click so it can paint P001 metadata and arm START TASK.
-       The early paint shield already hides this immediate board rebuild. */
+    /* v2.1.36: selector preview must never mutate the live board. PARTIAL is
+       entered only when BOARD SESSION START explicitly arms a real commit. */
+    if(!window.__apBoardCommit)return;
     ev.preventDefault();
     enterPartial();
   },true);
 
   fullBtn?.addEventListener('click',()=>{
-    if(partialMode)leavePartial();
+    if(window.__apBoardCommit && partialMode)leavePartial();
   },true);
 
   jumboBtn?.addEventListener('click',()=>{
-    if(partialMode)leavePartial();
+    if(window.__apBoardCommit && partialMode)leavePartial();
   },true);
 
   /* PARTIAL final-drop validation: all occupied cells must belong to the
@@ -8999,22 +8999,16 @@ body.partialMode #board > .partialCell{visibility:visible!important}
 
   /* Listen on document capture so this schedules the correction before the
      older PARTIAL target handler stops propagation on the button itself. */
-  document.addEventListener('pointerdown',ev=>{
+  /* v2.1.36: no board painting on selector preview. Only a committed START
+     may repaint/clear the target. This removes the P ghost and pink flash. */
+  document.addEventListener('click',ev=>{
+    if(!window.__apBoardCommit)return;
     if(ev.target?.closest?.('#partialBtn')){
       setTimeout(drawPartial293,0);
       setTimeout(drawPartial293,40);
-      setTimeout(drawPartial293,120);
     }
     if(ev.target?.closest?.('#fullBtn,#jumboBtn')){
       setTimeout(restoreNormal293,0);
-      setTimeout(restoreNormal293,80);
-    }
-  },true);
-  document.addEventListener('click',ev=>{
-    if(ev.target?.closest?.('#partialBtn')){
-      setTimeout(drawPartial293,0);
-      setTimeout(drawPartial293,50);
-      setTimeout(drawPartial293,150);
     }
   },true);
 
@@ -9085,11 +9079,9 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     root.classList.remove('v294Partial');
     document.getElementById('v294PartialOverlay')?.remove();
   }
-  document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#partialBtn')) setPartial();
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn')) clearPartial();
-  },true);
+  /* v2.1.36: legacy silhouette follows only a committed board change. */
   document.addEventListener('click',ev=>{
+    if(!window.__apBoardCommit)return;
     if(ev.target?.closest?.('#partialBtn')) setPartial();
     if(ev.target?.closest?.('#fullBtn,#jumboBtn')) clearPartial();
   },true);
@@ -9230,10 +9222,15 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     if(isPartial&&partialBoard)partialBoard.style.visibility='hidden';
 
     bypass=true;
+    window.__apBoardCommit=true;
     try{
-      if(btn.id==='jumboBtn' && typeof btn.onclick==='function') btn.onclick.call(btn);
-      else btn.click();
-    }finally{bypass=false;}
+      /* One committed click owns the complete mode transition. Historical
+         selector-preview listeners are gated off above. */
+      btn.click();
+    }finally{
+      window.__apBoardCommit=false;
+      bypass=false;
+    }
 
     /* Configure the real existing session engine, then press its START TASK.
        This keeps session counters/4EVER behavior identical to FULL. */
@@ -9492,90 +9489,11 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 </script>
 
 
-<!-- ANSSIPASI v2.1.33 CLEAN STABLE BASE: exact v2.1.28 behavior -->
+
+<!-- ANSSIPASI v2.1.36 SINGLE BOARD COMMIT SOURCE CLEANUP -->
 <script>
 (()=>{
- document.title='ANSSIPASI v2.1.33 · CLEAN STABLE BASE';
- document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.33');
-})();
-</script>
-
-<!-- ANSSIPASI v2.1.35 CLEAN RELOAD BOARD ROUTER
-     Every F/J/P change starts from a fresh document. This prevents accumulated
-     legacy board handlers, drag state and orientation residue from crossing a
-     board-mode boundary. The chosen mode is carried only in the URL query. -->
-<style id="v2135Style">
-html.v2135Routing body>header,html.v2135Routing body>main{visibility:hidden!important}
-</style>
-<script>
-(()=>{
-  const VERSION='v2.1.35';
-  const Q='apboard';
-  let bootRouting=false;
-  const wanted=(new URLSearchParams(location.search).get(Q)||'').toLowerCase();
-
-  function cleanUrlFor(mode){
-    const u=new URL(location.href);
-    if(mode==='full') u.searchParams.delete(Q); else u.searchParams.set(Q,mode);
-    u.searchParams.set('v','2135');
-    return u.toString();
-  }
-
-  /* Board selector ownership is absolute: do not let any historical board
-     mutator run in the old document. A fresh page owns the new board. */
-  window.addEventListener('pointerdown',ev=>{
-    const b=ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
-    if(!b || bootRouting) return;
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    const mode=b.id==='jumboBtn'?'jumbo':b.id==='partialBtn'?'partial':'full';
-    document.documentElement.classList.add('v2135Routing');
-    location.replace(cleanUrlFor(mode));
-  },true);
-  window.addEventListener('click',ev=>{
-    const b=ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn');
-    if(!b || bootRouting) return;
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-  },true);
-
-  function routeFreshMode(){
-    if(wanted!=='jumbo' && wanted!=='partial') return;
-    const b=document.getElementById(wanted==='jumbo'?'jumboBtn':'partialBtn');
-    if(!b) return;
-    bootRouting=true;
-    /* Keep the fresh page covered while the proven session-card controller
-       opens the requested mode. */
-    document.documentElement.classList.add('v2135Routing');
-    try{ b.click(); }catch(_){}
-    setTimeout(()=>{
-      bootRouting=false;
-      document.documentElement.classList.remove('v2135Routing');
-    },80);
-  }
-
-  /* Run only after all historical handlers are installed. */
-  if(document.readyState==='loading'){
-    addEventListener('DOMContentLoaded',()=>setTimeout(routeFreshMode,0),{once:true});
-  }else setTimeout(routeFreshMode,0);
-
-  /* START TASK always releases the routing cover and restores piece input. */
-  document.addEventListener('click',ev=>{
-    if(!ev.target?.closest?.('#startTask,#bsgStart')) return;
-    document.documentElement.classList.remove('v2135Routing');
-    setTimeout(()=>{
-      try{
-        document.querySelectorAll('.piece').forEach(e=>{
-          e.style.pointerEvents='';
-          e.onpointerdown=down;
-        });
-        if(shelf)shelf.style.pointerEvents='';
-        if(board)board.style.pointerEvents='';
-      }catch(_){}
-    },120);
-  },false);
-
-  document.title='ANSSIPASI '+VERSION+' · CLEAN RELOAD BOARD ROUTER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+  document.title='ANSSIPASI v2.1.36 · SINGLE BOARD COMMIT';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.36');
 })();
 </script>
