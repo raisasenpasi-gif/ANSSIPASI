@@ -9303,48 +9303,7 @@ body > .piece.sel{
 </script>
 
 
-<!-- ANSSIPASI v2.1.17 TRIPLE-TAP CLICK-THROUGH FIX
-     When the 3-tap SHELF shortcut moves a portal piece away under the finger,
-     Android can synthesize the final click onto the UI now exposed beneath it.
-     Suppress only that post-triple-tap click at WINDOW capture level. -->
-<script>
-(()=>{
-  const VERSION='v2.1.17';
-  let suppressClickUntil=0;
-  let triple={id:null,count:0,last:0};
-  try{
-    const baseGestureTap=gestureTap;
-    gestureTap=function(id){
-      const now=performance.now();
-      if(triple.id!==id || now-triple.last>480){
-        triple={id,count:1,last:now};
-      }else{
-        triple.count++;
-        triple.last=now;
-      }
-      if(triple.count>=3){
-        suppressClickUntil=now+520;
-        triple={id:null,count:0,last:0};
-      }
-      return baseGestureTap(id);
-    };
-  }catch(_){ }
-
-  window.addEventListener('click',ev=>{
-    if(performance.now()<suppressClickUntil){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-    }
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · TRIPLE TAP CLICK-THROUGH FIX';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
-  });
-})();
-</script>
-
-
+<!-- v2.1.17 obsolete click suppressor removed in v2.1.21 -->
 <!-- ANSSIPASI v2.1.18 ROBUST TRIPLE TAP + CLICK-THROUGH ROOT FIX
      Unifies 1/2/3 tap recognition with a slightly wider mobile-safe window and
      blocks Android's synthetic click at the exact piece-touch coordinate even
@@ -9440,43 +9399,40 @@ body > .piece.sel{
   });
 })();
 </script>
-<!-- ANSSIPASI v2.1.20 CLEAN BOARD-SWITCH TRANSITION GUARD
-     Removes historical pre-open/shield handlers that could strand the app on a
-     blank pink screen. The board is only hidden during pointerdown to prevent
-     transitional repaint; the proven boardSessionGate click controller remains
-     authoritative for JUMBO/PARTIAL routing. -->
-<style>
-body.v2120Switching #board{visibility:hidden!important}
-</style>
+
+<!-- ANSSIPASI v2.1.21 AUTHORITATIVE BOARD SWITCH RESET
+     v2.1.17's global post-triple click suppressor and v2.1.20's pointerdown
+     board-hiding guard were removed. JUMBO/PARTIAL now use only the proven
+     v2.1.04 click controller. Piece tap residue is cleared before a genuine
+     board selector press, without ever consuming the selector click itself. -->
 <script>
 (()=>{
-  const VERSION='v2.1.20';
-  let guardTimer=0;
-  function clearGuard(){
-    clearTimeout(guardTimer);
-    document.body.classList.remove('v2120Switching');
-  }
+  const VERSION='v2.1.21';
+
+  /* A real BOARD selector press always starts a fresh gesture context.
+     Do not preventDefault/stopPropagation here: the v2.1.04 controller owns
+     the following click and opens the correct JUMBO/PARTIAL session card. */
   window.addEventListener('pointerdown',ev=>{
-    const btn=ev.target?.closest?.('#jumboBtn,#partialBtn');
-    if(!btn)return;
-    document.body.classList.add('v2120Switching');
-    clearTimeout(guardTimer);
-    guardTimer=setTimeout(clearGuard,900);
+    if(!ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')) return;
+    try{
+      if(typeof tapState!=='undefined' && tapState?.timer) clearTimeout(tapState.timer);
+      if(typeof tapState!=='undefined') tapState={id:null,count:0,timer:null};
+    }catch(_){ }
   },true);
 
-  /* Once the session gate is visibly open, there is no longer any chance of a
-     board repaint being seen, so release the temporary board visibility guard. */
-  document.addEventListener('click',ev=>{
-    if(!ev.target?.closest?.('#jumboBtn,#partialBtn')) return;
-    requestAnimationFrame(()=>requestAnimationFrame(clearGuard));
+  /* Fail-safe only: a board selector click must never leave a legacy full-screen
+     switch shield visible. It does not alter the gate or consume the click. */
+  window.addEventListener('click',ev=>{
+    if(!ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')) return;
+    const shield=document.getElementById('boardSwitchShield211');
+    if(shield) shield.style.display='none';
+    document.body.classList.remove('v2120Switching');
   },true);
 
-  window.addEventListener('pointercancel',clearGuard,true);
-  window.addEventListener('blur',clearGuard);
-
-  document.title='ANSSIPASI '+VERSION+' · CLEAN BOARD SWITCH';
+  document.title='ANSSIPASI '+VERSION+' · AUTHORITATIVE BOARD SWITCH';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
   });
 })();
 </script>
+
