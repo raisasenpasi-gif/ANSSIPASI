@@ -9150,9 +9150,16 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
       const oldChoice=document.querySelector('#taskCountChooser [data-count="'+count+'"]');
       if(oldChoice)oldChoice.click();
       const nativeStart=document.getElementById('startTask');
-      if(nativeStart&&!nativeStart.disabled)nativeStart.click();
+      /* JUMBO still uses the native FULL/JUMBO START TASK path. PARTIAL has
+         already been fully initialized by its own proven enterPartial() path
+         above. Calling native START TASK here runs the historical FULL layout
+         repair and shrinks PARTIAL back to the smaller board scale. */
+      if(!isPartial && nativeStart && !nativeStart.disabled) nativeStart.click();
 
       if(isPartial){
+        /* Keep the exact v2.0.97 accepted PARTIAL geometry. The session-count
+           click above is enough to configure 1/5/10/25/4EVER and its counter;
+           do not run FULL's START geometry over PARTIAL. */
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
           if(partialBoard)partialBoard.style.visibility='';
           gate.style.display='none';
@@ -9171,3 +9178,7 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
 
 
 <!-- ANSSIPASI v2.1.04: JUMBO/PARTIAL session cards now mirror FULL task-card content and flow. v2.1.03 PARTIAL first-paint lock retained. -->
+
+
+<!-- ANSSIPASI v2.1.05: PARTIAL START geometry isolation. JUMBO keeps native START TASK; PARTIAL keeps its accepted v2.0.97 large geometry while session count remains configured. -->
+<script>(()=>{const VERSION='v2.1.05';document.title='ANSSIPASI '+VERSION+' · PARTIAL LARGE BOARD LOCK';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);})();</script>
