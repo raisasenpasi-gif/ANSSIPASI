@@ -8139,17 +8139,19 @@ body.partialMode #board::before{
   }
 
   partialBtn?.addEventListener('click',ev=>{
-    if(!window.__apBoardCommit)return;
+    /* Do not stop propagation here. The later session-card controller must
+       receive the same click so it can paint P001 metadata and arm START TASK.
+       The early paint shield already hides this immediate board rebuild. */
     ev.preventDefault();
     enterPartial();
   },true);
 
   fullBtn?.addEventListener('click',()=>{
-    if(window.__apBoardCommit && partialMode)leavePartial();
+    if(partialMode)leavePartial();
   },true);
 
   jumboBtn?.addEventListener('click',()=>{
-    if(window.__apBoardCommit && partialMode)leavePartial();
+    if(partialMode)leavePartial();
   },true);
 
   /* PARTIAL final-drop validation: all occupied cells must belong to the
@@ -8178,17 +8180,15 @@ body.partialMode #board::before{
     return oldDrop210(id);
   };
 
-  /* v2.1.46: NEVER replace the global boolean `solved` with a function.
-     PARTIAL completion is handled later by the PARTIAL CORE FIX/checkSolved().
-     Keeping `solved` boolean is essential because pickup begins with
-     `if(paused||solved)return;`. */
-  function partialSolved210(){
-    if(!partialMode)return false;
+  /* Completion on PARTIAL means exactly the 20 active target cells. */
+  const oldSolved210=solved;
+  solved=function(){
+    if(!partialMode)return oldSolved210();
     rebuildOcc();
     if(occ.size!==20)return false;
     for(const k of PARTIAL_SET)if(!occ.has(k))return false;
     return true;
-  }
+  };
 
   /* SCORE target metadata follows the active PARTIAL task. */
   const oldCurrentTask210=currentTask;
@@ -8999,14 +8999,22 @@ body.partialMode #board > .partialCell{visibility:visible!important}
 
   /* Listen on document capture so this schedules the correction before the
      older PARTIAL target handler stops propagation on the button itself. */
-  document.addEventListener('click',ev=>{
-    if(!window.__apBoardCommit)return;
+  document.addEventListener('pointerdown',ev=>{
     if(ev.target?.closest?.('#partialBtn')){
       setTimeout(drawPartial293,0);
       setTimeout(drawPartial293,40);
+      setTimeout(drawPartial293,120);
     }
     if(ev.target?.closest?.('#fullBtn,#jumboBtn')){
       setTimeout(restoreNormal293,0);
+      setTimeout(restoreNormal293,80);
+    }
+  },true);
+  document.addEventListener('click',ev=>{
+    if(ev.target?.closest?.('#partialBtn')){
+      setTimeout(drawPartial293,0);
+      setTimeout(drawPartial293,50);
+      setTimeout(drawPartial293,150);
     }
   },true);
 
@@ -9077,8 +9085,11 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     root.classList.remove('v294Partial');
     document.getElementById('v294PartialOverlay')?.remove();
   }
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#partialBtn')) setPartial();
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn')) clearPartial();
+  },true);
   document.addEventListener('click',ev=>{
-    if(!window.__apBoardCommit)return;
     if(ev.target?.closest?.('#partialBtn')) setPartial();
     if(ev.target?.closest?.('#fullBtn,#jumboBtn')) clearPartial();
   },true);
@@ -9219,13 +9230,10 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
     if(isPartial&&partialBoard)partialBoard.style.visibility='hidden';
 
     bypass=true;
-    window.__apBoardCommit=true;
     try{
-      btn.click();
-    }finally{
-      window.__apBoardCommit=false;
-      bypass=false;
-    }
+      if(btn.id==='jumboBtn' && typeof btn.onclick==='function') btn.onclick.call(btn);
+      else btn.click();
+    }finally{bypass=false;}
 
     /* Configure the real existing session engine, then press its START TASK.
        This keeps session counters/4EVER behavior identical to FULL. */
@@ -9248,14 +9256,6 @@ html.v294Partial #v294PartialOverlay .v294Cell{visibility:visible!important}
           gate.style.display='none';
         }));
       }else gate.style.display='none';
-      /* v2.1.44: openGate() pauses input. Release that pause after BOTH J and P
-         commits. P intentionally skips native startTask, so it cannot rely on
-         the native handler to clear paused. */
-      try{
-        paused=false;
-        pauseStarted=0;
-        solved=false;
-      }catch(_){}
       pendingButton=null;selectedCount=null;
     },0);
   });
@@ -9491,11 +9491,12 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.46 SOLVED-STATE ROOT FIX -->
+
+<!-- ANSSIPASI v2.1.47 PURE v2.1.28 CONTROL TEST -->
 <script>
 (()=>{
-  const VERSION='v2.1.46';
-  document.title='ANSSIPASI '+VERSION+' · SOLVED STATE ROOT FIX';
+  const VERSION='v2.1.47';
+  document.title='ANSSIPASI '+VERSION+' · PURE v2.1.28 CONTROL';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
