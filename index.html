@@ -2226,18 +2226,12 @@ body.dragRecovery #pieceToolbar{display:none!important}
      the contact mid-drag. */
   window.addEventListener('pointercancel',()=>recoverDrag('pointercancel'),true);
   window.addEventListener('touchcancel',()=>recoverDrag('touchcancel'),true);
-  window.addEventListener('lostpointercapture',()=>recoverDrag('lostcapture'),true);
+  /* v2.1.54 disabled: reparenting can emit lostpointercapture; not a drag failure. */
 
   /* If the finger/pointer ends but the game engine somehow missed its own
      release handler, clean the stale state immediately afterwards. */
-  window.addEventListener('pointerup',()=>{
-    lastPointerEvent=Date.now();
-    setTimeout(()=>{ if(drag) recoverDrag('missed-pointerup'); },40);
-  },true);
-  window.addEventListener('touchend',()=>{
-    lastPointerEvent=Date.now();
-    setTimeout(()=>{ if(drag) recoverDrag('missed-touchend'); },50);
-  },true);
+  /* v2.1.54 disabled legacy delayed pointerup/touchend recovery.
+     The current drag owner completes release synchronously. */
 
   window.addEventListener('pointermove',()=>{lastPointerEvent=Date.now()},true);
   window.addEventListener('touchmove',()=>{lastPointerEvent=Date.now()},true);
@@ -2251,9 +2245,8 @@ body.dragRecovery #pieceToolbar{display:none!important}
 
   /* Orientation/viewport changes can invalidate the drag coordinates. */
   window.addEventListener('orientationchange',()=>recoverDrag('orientation'),true);
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize',()=>{ if(drag) recoverDrag('viewport-resize'); });
-  }
+  /* v2.1.54 disabled visualViewport drag recovery.
+     Android browser chrome may resize during ordinary play. */
 
   /* Watchdog: a drag with no pointer traffic for 1.5 s is almost certainly
      stale. This is deliberately conservative so normal thinking while
@@ -2368,14 +2361,8 @@ body.dragRecovery #pieceToolbar{display:none!important}
   /* Safety after a normal release: if the core engine has finished the drag,
      no action. If a stale large piece is still sitting over SHELF, normalize
      it without freezing the game. */
-  window.addEventListener('pointerup',()=>{
-    setTimeout(()=>{
-      if(!fingerDown) normalizeStrandedPiece();
-      document.querySelectorAll('.piece').forEach(e=>{
-        e.style.pointerEvents = S[+e.dataset.id]?.locked ? 'none' : '';
-      });
-    },80);
-  },true);
+  /* v2.1.54 disabled old 80 ms post-release normalization.
+     It races with the current drag lifecycle after repeated moves. */
 
   /* A new task/redo must start with a completely clean interaction state. */
   function hardInteractionReset(){
@@ -2562,18 +2549,8 @@ body.dragRecovery #pieceToolbar{display:none!important}
   },true);
 
   /* Post-release cleanup for a missed shelf normalization. */
-  window.addEventListener('pointerup',()=>{
-    setTimeout(()=>{
-      if(drag!=null) return;
-      document.querySelectorAll('.piece').forEach(e=>{
-        const id=+e.dataset.id;
-        if(!S[id] || S[id].place || e.parentElement===shelf) return;
-        const r=e.getBoundingClientRect(), sr=shelf.getBoundingClientRect();
-        const overlaps = r.left<sr.right && r.right>sr.left && r.top<sr.bottom && r.bottom>sr.top;
-        if(overlaps) normalizeToShelf(id,false);
-      });
-    },50);
-  },true);
+  /* v2.1.54 disabled legacy 50 ms post-release shelf cleanup.
+     Current owner normalizes on actual cancel/boundary instead. */
 
   /* Keep selected styling stable after ordinary pointer release on a placed piece. */
   window.addEventListener('pointerup',()=>{
@@ -9496,140 +9473,11 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.53 PARTIAL OWNER + CLICK-THROUGH GUARD -->
+<!-- ANSSIPASI v2.1.54 LEGACY RECOVERY CLEANUP -->
 <script>
 (()=>{
-  const VERSION='v2.1.53', THRESHOLD=5;
-  let pq=null, suppressBoardClickUntil=0;
-
-  const inside=(x,y,r)=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
-  const byId=id=>document.querySelector(`.piece[data-id="${id}"]`);
-
-  function isPartial(){
-    return document.body.classList.contains('partialMode');
-  }
-
-  function modalOpen(){
-    return ['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
-      'correctCard','sessionComplete','quitConfirm','stopConfirm228',
-      'boardSwitchShield211','boardSessionGate'].some(id=>{
-        const e=document.getElementById(id);
-        if(!e)return false;
-        const c=getComputedStyle(e);
-        return c.display!=='none'&&c.visibility!=='hidden';
-      });
-  }
-
-  function partialPieceAt(x,y){
-    if(!isPartial())return null;
-    const pieces=[...document.querySelectorAll('.piece')].reverse();
-    for(const e of pieces){
-      const id=+e.dataset.id;
-      if(!Number.isFinite(id))continue;
-      const r=e.getBoundingClientRect();
-      if(inside(x,y,r))return {id,e,r};
-    }
-    return null;
-  }
-
-  function returnPiece(id){
-    try{drag=null;pendingPieceDrag=null;}catch(_){}
-    try{
-      if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
-      else home(id,false);
-    }catch(_){try{home(id,false);}catch(__){}}
-    const e=byId(id);
-    if(e){e.classList.remove('sel');e.style.pointerEvents='';e.style.zIndex='';}
-    try{tools.style.display='none';}catch(_){}
-  }
-
-  function startPartialDrag(ev){
-    if(!pq||pq.dragging)return;
-    const id=pq.id,e=byId(id);
-    if(!e){pq=null;return;}
-
-    try{
-      paused=false;solved=false;
-      if(S[id]?.place)clear(id);
-      choose(id);
-      (window.__piecePortal2116||document.body).append(e);
-      drag=id;off=[pq.offX,pq.offY];pendingPieceDrag=null;
-    }catch(_){}
-
-    pq.dragging=true;
-    Object.assign(e.style,{
-      position:'fixed',
-      left:(ev.clientX-pq.offX)+'px',
-      top:(ev.clientY-pq.offY)+'px',
-      transform:'scale(1)',transformOrigin:'top left',
-      zIndex:'1000',pointerEvents:'auto'
-    });
-  }
-
-  /* PARTIAL gets one authoritative pointer owner for BOTH shelf and board pieces. */
-  window.addEventListener('pointerdown',ev=>{
-    if(!isPartial()||modalOpen())return;
-    const hit=partialPieceAt(ev.clientX,ev.clientY);
-    if(!hit)return;
-
-    pq={
-      id:hit.id,pointerId:ev.pointerId,
-      startX:ev.clientX,startY:ev.clientY,
-      offX:ev.clientX-hit.r.left,offY:ev.clientY-hit.r.top,
-      dragging:false
-    };
-    try{paused=false;solved=false;choose(hit.id);}catch(_){}
-    ev.preventDefault();ev.stopImmediatePropagation();
-  },true);
-
-  window.addEventListener('pointermove',ev=>{
-    if(!pq||ev.pointerId!==pq.pointerId)return;
-    if(!pq.dragging&&Math.hypot(ev.clientX-pq.startX,ev.clientY-pq.startY)>=THRESHOLD)
-      startPartialDrag(ev);
-    if(pq?.dragging){
-      const e=byId(pq.id);
-      if(e){e.style.left=(ev.clientX-pq.offX)+'px';e.style.top=(ev.clientY-pq.offY)+'px';}
-    }
-    ev.preventDefault();ev.stopImmediatePropagation();
-  },true);
-
-  window.addEventListener('pointerup',ev=>{
-    if(!pq||ev.pointerId!==pq.pointerId)return;
-    const id=pq.id,was=pq.dragging;
-    ev.preventDefault();ev.stopImmediatePropagation();
-    if(was){
-      try{drag=id;drop(id);}catch(_){returnPiece(id);}
-      try{drag=null;pendingPieceDrag=null;}catch(_){}
-    }else{
-      try{gestureTap(id);}catch(_){}
-    }
-    suppressBoardClickUntil=performance.now()+500;
-    pq=null;
-  },true);
-
-  window.addEventListener('pointercancel',ev=>{
-    if(!pq||ev.pointerId!==pq.pointerId)return;
-    returnPiece(pq.id);pq=null;
-  },true);
-
-  /*
-    A triple-tap that sends a piece home can expose a BOARD button under the
-    finger before Chrome synthesizes click. Block that one synthetic click.
-  */
-  document.addEventListener('click',ev=>{
-    if(performance.now()>suppressBoardClickUntil)return;
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-    }
-  },true);
-
-  /* Same guard for FULL/JUMBO piece gestures: no click-through into BOARD selector. */
-  window.addEventListener('pointerup',ev=>{
-    if(ev.target?.closest?.('.piece')) suppressBoardClickUntil=performance.now()+500;
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · PARTIAL OWNER + CLICK GUARD';
+  const VERSION='v2.1.54';
+  document.title='ANSSIPASI '+VERSION+' · LEGACY RECOVERY CLEANUP';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
