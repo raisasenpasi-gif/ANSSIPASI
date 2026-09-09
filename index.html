@@ -9412,3 +9412,45 @@ body > .piece.sel{
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;});
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.17 TRIPLE-TAP CLICK-THROUGH FIX
+     When the 3-tap SHELF shortcut moves a portal piece away under the finger,
+     Android can synthesize the final click onto the UI now exposed beneath it.
+     Suppress only that post-triple-tap click at WINDOW capture level. -->
+<script>
+(()=>{
+  const VERSION='v2.1.17';
+  let suppressClickUntil=0;
+  let triple={id:null,count:0,last:0};
+  try{
+    const baseGestureTap=gestureTap;
+    gestureTap=function(id){
+      const now=performance.now();
+      if(triple.id!==id || now-triple.last>480){
+        triple={id,count:1,last:now};
+      }else{
+        triple.count++;
+        triple.last=now;
+      }
+      if(triple.count>=3){
+        suppressClickUntil=now+520;
+        triple={id:null,count:0,last:0};
+      }
+      return baseGestureTap(id);
+    };
+  }catch(_){ }
+
+  window.addEventListener('click',ev=>{
+    if(performance.now()<suppressClickUntil){
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · TRIPLE TAP CLICK-THROUGH FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>{
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION;
+  });
+})();
+</script>
