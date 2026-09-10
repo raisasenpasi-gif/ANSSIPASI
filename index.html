@@ -196,6 +196,7 @@ function choose(id){
  let e=document.querySelector(`[data-id="${id}"]`);
  if(!e)return;
  e.classList.add("sel");
+ tools.style.visibility="visible";
  tools.style.display="flex";
  requestAnimationFrame(positionTools);
 }
@@ -9499,7 +9500,7 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 <!-- ANSSIPASI v2.1.59 UNIFIED F/J/P POINTER OWNER -->
 <script>
 (()=>{
-  const VERSION='v2.1.59', THRESHOLD=5;
+  const VERSION='v2.1.62', THRESHOLD=5;
   let pq=null, suppressBoardClickUntil=0;
 
   const inside=(x,y,r)=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
@@ -9579,6 +9580,8 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
       dragging:false
     };
     try{paused=false;solved=false;choose(hit.id);}catch(_){}
+    /* v2.1.62: arm click-through shield BEFORE propagation stops. */
+    suppressBoardClickUntil=performance.now()+1200;
     ev.preventDefault();ev.stopImmediatePropagation();
   },true);
 
@@ -9607,8 +9610,30 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     }else{
       try{gestureTap(id);}catch(_){}
     }
-    suppressBoardClickUntil=performance.now()+500;
+    suppressBoardClickUntil=performance.now()+1200;
     pq=null;
+
+    /* v2.1.62: old handlers may set visibility:hidden after release.
+       Reassert the selected placed piece after they have finished. */
+    [0,60,140].forEach(ms=>setTimeout(()=>{
+      try{
+        if(id!=null && S?.[id]?.place){
+          sel=id;
+          const e=document.querySelector(`.piece[data-id="${id}"]`);
+          if(e){
+            document.querySelectorAll('.piece.sel').forEach(p=>{if(p!==e)p.classList.remove('sel');});
+            e.classList.add('sel');
+          }
+          tools.style.visibility='visible';
+          tools.style.display='flex';
+          tools.classList.remove('dragHidden');
+          positionTools();
+        }else if(window.tools){
+          tools.style.display='none';
+          tools.style.visibility='hidden';
+        }
+      }catch(_){}
+    },ms));
     try{requestAnimationFrame(positionTools);}catch(_){}
   },true);
 
@@ -9621,9 +9646,9 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     A triple-tap that sends a piece home can expose a BOARD button under the
     finger before Chrome synthesizes click. Block that one synthetic click.
   */
-  document.addEventListener('click',ev=>{
+  window.addEventListener('click',ev=>{
     if(performance.now()>suppressBoardClickUntil)return;
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn')){
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#startTask,#boardSessionGate button,#taskCard button')){
       ev.preventDefault();
       ev.stopImmediatePropagation();
     }
@@ -9634,81 +9659,17 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     if(ev.target?.closest?.('.piece')) suppressBoardClickUntil=performance.now()+500;
   },true);
 
-  document.title='ANSSIPASI '+VERSION+' · UNIFIED POINTER OWNER';
+  document.title='ANSSIPASI '+VERSION+' · POPUP + CLICK SHIELD ROOT FIX';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.61 TOOLBAR PERSISTENCE + CLICK SHIELD -->
+<!-- ANSSIPASI v2.1.62 ROOT POPUP/CLICK FIX -->
 <script>
-(()=>{
-  const VERSION='v2.1.61';
-  let pieceSeqUntil=0;
-  let activePieceId=null;
-
-  const oldChoose=window.choose;
-  window.choose=function(id){
-    const r=oldChoose(id);
-    try{
-      activePieceId=id;
-      const e=document.querySelector(`.piece[data-id="${id}"]`);
-      if(e){
-        sel=id;
-        document.querySelectorAll('.piece.sel').forEach(p=>{if(p!==e)p.classList.remove('sel');});
-        e.classList.add('sel');
-      }
-      if(window.tools){
-        tools.style.display='flex';
-        tools.classList.remove('dragHidden');
-        requestAnimationFrame(()=>requestAnimationFrame(()=>{try{positionTools();}catch(_){}}));
-      }
-    }catch(_){}
-    return r;
-  };
-
-  function reinforceTools(id){
-    if(id==null || !S?.[id]) return;
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
-    if(!e || !S[id].place) return;
-    try{
-      sel=id;
-      e.classList.add('sel');
-      tools.style.display='flex';
-      tools.classList.remove('dragHidden');
-      positionTools();
-    }catch(_){}
-  }
-
-  window.addEventListener('pointerdown',ev=>{
-    const p=ev.target?.closest?.('.piece');
-    if(!p) return;
-    activePieceId=+p.dataset.id;
-    pieceSeqUntil=performance.now()+1600;
-  },true);
-
-  window.addEventListener('pointerup',()=>{
-    const id=activePieceId;
-    [0,80,180,320].forEach(ms=>setTimeout(()=>reinforceTools(id),ms));
-  },false);
-
-  document.addEventListener('click',ev=>{
-    if(performance.now()>pieceSeqUntil) return;
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#startTask,#taskCard button,#boardSessionGate button')){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-    }
-  },true);
-
-  window.addEventListener('orientationchange',()=>{
-    activePieceId=null;
-    pieceSeqUntil=0;
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · TOOLBAR PERSISTENCE';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
-    c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
-  );
-})();
+document.title='ANSSIPASI v2.1.62 · ROOT POPUP/CLICK FIX';
+document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
+ c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.62'
+);
 </script>
