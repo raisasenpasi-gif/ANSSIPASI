@@ -9666,10 +9666,154 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.62 ROOT POPUP/CLICK FIX -->
+<!-- ANSSIPASI v2.1.63 BANNER SHIELD + POPUP OWNER -->
+<style>
+/* While a piece gesture is active, BOARD selector buttons cannot receive taps
+   through a piece that sits above them. */
+body.apPieceGesture #fullBtn,
+body.apPieceGesture #jumboBtn,
+body.apPieceGesture #partialBtn{
+  pointer-events:none!important;
+}
+</style>
+
 <script>
-document.title='ANSSIPASI v2.1.62 · ROOT POPUP/CLICK FIX';
-document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
- c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.62'
-);
+(()=>{
+  const VERSION='v2.1.63';
+  let seqTimer=null;
+  let activeId=null;
+  let lastPointerWasPiece=false;
+
+  function isShelfPiece(id){
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  }
+
+  function normalizeSelection(id){
+    if(id==null) return;
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    if(!e) return;
+
+    document.querySelectorAll('.piece.sel').forEach(p=>{
+      if(p!==e) p.classList.remove('sel');
+    });
+
+    if(!isShelfPiece(id)){
+      sel=id;
+      e.classList.add('sel');
+    }else{
+      if(sel===id) sel=null;
+      e.classList.remove('sel');
+    }
+  }
+
+  function showPopupFor(id){
+    if(id==null || !S?.[id]) return;
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    if(!e || isShelfPiece(id)) return;
+
+    normalizeSelection(id);
+
+    try{
+      tools.style.visibility='visible';
+      tools.style.display='flex';
+      tools.classList.remove('dragHidden');
+      positionTools();
+    }catch(_){}
+  }
+
+  function hidePopupIfShelf(id){
+    if(id==null || !isShelfPiece(id)) return;
+    try{
+      tools.style.display='none';
+      tools.style.visibility='hidden';
+    }catch(_){}
+  }
+
+  function armPieceGesture(id){
+    activeId=id;
+    lastPointerWasPiece=true;
+    document.body.classList.add('apPieceGesture');
+
+    clearTimeout(seqTimer);
+    seqTimer=setTimeout(()=>{
+      document.body.classList.remove('apPieceGesture');
+      lastPointerWasPiece=false;
+      seqTimer=null;
+    },1400);
+  }
+
+  /* Capture at WINDOW level before legacy BOARD handlers. */
+  window.addEventListener('pointerdown',ev=>{
+    const p=ev.target?.closest?.('.piece');
+    if(!p) return;
+
+    const id=+p.dataset.id;
+    if(!Number.isFinite(id)) return;
+
+    armPieceGesture(id);
+
+    /* If the piece is already on the board/floating, popup ownership is ours. */
+    if(!isShelfPiece(id)){
+      [0,30].forEach(ms=>setTimeout(()=>showPopupFor(id),ms));
+    }
+  },true);
+
+  /* Keep popup attached while the selected piece crosses the BOARD banner. */
+  window.addEventListener('pointermove',()=>{
+    if(activeId==null || !lastPointerWasPiece) return;
+    if(isShelfPiece(activeId)) return;
+    try{
+      if(tools.style.display!=='none') positionTools();
+    }catch(_){}
+  },false);
+
+  window.addEventListener('pointerup',ev=>{
+    if(activeId==null || !lastPointerWasPiece) return;
+
+    /* Keep the BOARD selector shield alive long enough for 2nd/3rd tap clicks. */
+    armPieceGesture(activeId);
+
+    const id=activeId;
+    [0,40,100,220].forEach(ms=>setTimeout(()=>{
+      if(isShelfPiece(id)) hidePopupIfShelf(id);
+      else showPopupFor(id);
+    },ms));
+  },false);
+
+  /* Absolute click-through block while the physical shield is active. */
+  window.addEventListener('click',ev=>{
+    if(!document.body.classList.contains('apPieceGesture')) return;
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#startTask,#boardSessionGate button,#taskCard button')){
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
+  },true);
+
+  /* A real board switch is still allowed when there is no live piece gesture. */
+  ['fullBtn','jumboBtn','partialBtn'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('pointerdown',ev=>{
+      if(document.body.classList.contains('apPieceGesture')){
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+      }
+    },true);
+  });
+
+  /* Orientation/UI boundary: clear gesture shield, selection and popup cleanly. */
+  function clearGestureUi(){
+    document.body.classList.remove('apPieceGesture');
+    lastPointerWasPiece=false;
+    activeId=null;
+    clearTimeout(seqTimer);
+    seqTimer=null;
+  }
+  window.addEventListener('orientationchange',clearGestureUi,true);
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) clearGestureUi(); },true);
+
+  document.title='ANSSIPASI '+VERSION+' · BANNER SHIELD + POPUP OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
+    c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
+  );
+})();
 </script>
