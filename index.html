@@ -2226,7 +2226,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
      the contact mid-drag. */
   window.addEventListener('pointercancel',()=>recoverDrag('pointercancel'),true);
   window.addEventListener('touchcancel',()=>recoverDrag('touchcancel'),true);
-  /* v2.1.58: disabled obsolete lostpointercapture drag recovery */
+  window.addEventListener('lostpointercapture',()=>recoverDrag('lostcapture'),true);
 
   /* If the finger/pointer ends but the game engine somehow missed its own
      release handler, clean the stale state immediately afterwards. */
@@ -2252,7 +2252,7 @@ body.dragRecovery #pieceToolbar{display:none!important}
   /* Orientation/viewport changes can invalidate the drag coordinates. */
   window.addEventListener('orientationchange',()=>recoverDrag('orientation'),true);
   if(window.visualViewport){
-    /* v2.1.58: disabled viewport-resize drag recovery; Android Chrome may resize during live drag */
+    window.visualViewport.addEventListener('resize',()=>{ if(drag) recoverDrag('viewport-resize'); });
   }
 
   /* Watchdog: a drag with no pointer traffic for 1.5 s is almost certainly
@@ -9496,17 +9496,18 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.53 PARTIAL OWNER + CLICK-THROUGH GUARD -->
+<!-- ANSSIPASI v2.1.59 UNIFIED F/J/P POINTER OWNER -->
 <script>
 (()=>{
-  const VERSION='v2.1.53', THRESHOLD=5;
+  const VERSION='v2.1.59', THRESHOLD=5;
   let pq=null, suppressBoardClickUntil=0;
 
   const inside=(x,y,r)=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
   const byId=id=>document.querySelector(`.piece[data-id="${id}"]`);
 
   function isPartial(){
-    return document.body.classList.contains('partialMode');
+    /* v2.1.59: this owner is authoritative on FULL, JUMBO and PARTIAL. */
+    return true;
   }
 
   function modalOpen(){
@@ -9521,7 +9522,6 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
   }
 
   function partialPieceAt(x,y){
-    if(!isPartial())return null;
     const pieces=[...document.querySelectorAll('.piece')].reverse();
     for(const e of pieces){
       const id=+e.dataset.id;
@@ -9588,7 +9588,11 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
       startPartialDrag(ev);
     if(pq?.dragging){
       const e=byId(pq.id);
-      if(e){e.style.left=(ev.clientX-pq.offX)+'px';e.style.top=(ev.clientY-pq.offY)+'px';}
+      if(e){
+        e.style.left=(ev.clientX-pq.offX)+'px';
+        e.style.top=(ev.clientY-pq.offY)+'px';
+        try{positionTools();}catch(_){}
+      }
     }
     ev.preventDefault();ev.stopImmediatePropagation();
   },true);
@@ -9605,6 +9609,7 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     }
     suppressBoardClickUntil=performance.now()+500;
     pq=null;
+    try{requestAnimationFrame(positionTools);}catch(_){}
   },true);
 
   window.addEventListener('pointercancel',ev=>{
@@ -9629,20 +9634,17 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     if(ev.target?.closest?.('.piece')) suppressBoardClickUntil=performance.now()+500;
   },true);
 
-  document.title='ANSSIPASI '+VERSION+' · PARTIAL OWNER + CLICK GUARD';
+  document.title='ANSSIPASI '+VERSION+' · UNIFIED POINTER OWNER';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.58 ANDROID LIVE-DRAG RECOVERY TEST -->
+<!-- ANSSIPASI v2.1.59 UNIFIED OWNER TEST -->
 <script>
-(()=>{
-  const VERSION='v2.1.58';
-  document.title='ANSSIPASI '+VERSION+' · LIVE DRAG TEST';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
-    c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
-  );
-})();
+document.title='ANSSIPASI v2.1.59 · UNIFIED F/J/P INPUT';
+document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
+ c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · v2.1.59'
+);
 </script>
