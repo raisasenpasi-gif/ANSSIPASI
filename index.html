@@ -9850,3 +9850,153 @@ body.apBoardTransition #tools{
   );
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.65 ACTIVE PIECE POPUP STABILIZER -->
+<script>
+(()=>{
+  const VERSION='v2.1.65';
+  let lastPieceId=null;
+  let holdUntil=0;
+  let raf=0;
+
+  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const onShelf=id=>{
+    const e=pieceEl(id);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  };
+  const modalOpen=()=>['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
+    'correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211','boardSessionGate']
+    .some(id=>{
+      const e=document.getElementById(id); if(!e)return false;
+      const c=getComputedStyle(e); return c.display!=='none'&&c.visibility!=='hidden';
+    });
+
+  function safePosition(id){
+    const e=pieceEl(id), t=window.tools||document.getElementById('tools');
+    if(!e||!t)return;
+    t.style.display='flex';
+    t.style.visibility='visible';
+    t.classList.remove('dragHidden');
+    const r=e.getBoundingClientRect();
+    requestAnimationFrame(()=>{
+      const tr=t.getBoundingClientRect(), gap=8, vw=innerWidth, vh=innerHeight;
+      const c=[
+        [r.left+(r.width-tr.width)/2,r.top-tr.height-gap],
+        [r.left+(r.width-tr.width)/2,r.bottom+gap],
+        [r.right+gap,r.top+(r.height-tr.height)/2],
+        [r.left-tr.width-gap,r.top+(r.height-tr.height)/2]
+      ];
+      let p=c.find(([x,y])=>x>=4&&y>=4&&x+tr.width<=vw-4&&y+tr.height<=vh-4);
+      if(!p)p=[Math.max(4,Math.min(vw-tr.width-4,c[0][0])),Math.max(4,Math.min(vh-tr.height-4,c[0][1]))];
+      t.style.left=p[0]+'px'; t.style.top=p[1]+'px';
+    });
+  }
+
+  function restore(id){
+    if(id==null||modalOpen()||onShelf(id))return;
+    const e=pieceEl(id); if(!e)return;
+    try{
+      sel=id;
+      document.querySelectorAll('.piece.sel').forEach(p=>{if(p!==e)p.classList.remove('sel')});
+      e.classList.add('sel');
+      safePosition(id);
+    }catch(_){}
+  }
+
+  function scheduleRestore(id){
+    if(id==null)return;
+    lastPieceId=id; holdUntil=performance.now()+1600;
+    [0,30,90,180,360,700].forEach(ms=>setTimeout(()=>{
+      if(lastPieceId===id&&!onShelf(id)&&!modalOpen())restore(id);
+    },ms));
+  }
+
+  /* Remember every real piece touch before older code can clear sel/tools. */
+  window.addEventListener('pointerdown',ev=>{
+    const p=ev.target?.closest?.('.piece');
+    if(!p)return;
+    const id=+p.dataset.id; if(!Number.isFinite(id))return;
+    lastPieceId=id; holdUntil=performance.now()+1600;
+    if(!onShelf(id)) scheduleRestore(id);
+  },true);
+
+  window.addEventListener('pointerup',ev=>{
+    const p=ev.target?.closest?.('.piece');
+    const id=p?+p.dataset.id:lastPieceId;
+    if(!Number.isFinite(id))return;
+    if(onShelf(id)){
+      if(lastPieceId===id)lastPieceId=null;
+      return;
+    }
+    scheduleRestore(id);
+  },false);
+
+  /* Legal DROP and transform are the two moments that most often lose popup state.
+     Wrap them once and restore after legacy handlers have finished. */
+  try{
+    const dropBefore2165=drop;
+    drop=function(id){
+      const result=dropBefore2165(id);
+      if(!onShelf(id)) scheduleRestore(id);
+      return result;
+    };
+  }catch(_){}
+
+  try{
+    const transformBefore2165=transform;
+    transform=function(kind){
+      const id=sel!=null?sel:lastPieceId;
+      const result=transformBefore2165(kind);
+      if(id!=null&&!onShelf(id)) scheduleRestore(id);
+      return result;
+    };
+  }catch(_){}
+
+  /* MutationObserver repairs legacy visibility/display/class rewrites immediately. */
+  const t=window.tools||document.getElementById('tools');
+  if(t){
+    new MutationObserver(()=>{
+      if(lastPieceId==null||onShelf(lastPieceId)||modalOpen())return;
+      if(performance.now()<holdUntil || sel===lastPieceId){
+        cancelAnimationFrame(raf);
+        raf=requestAnimationFrame(()=>restore(lastPieceId));
+      }
+    }).observe(t,{attributes:true,attributeFilter:['style','class']});
+  }
+
+  /* During an active non-shelf selection keep the popup alive. This is deliberately
+     lightweight and only reasserts when an older layer has hidden it. */
+  setInterval(()=>{
+    const id=lastPieceId;
+    if(id==null||onShelf(id)||modalOpen())return;
+    const e=pieceEl(id), t=window.tools||document.getElementById('tools');
+    if(!e||!t)return;
+    const cs=getComputedStyle(t);
+    if(sel!==id || !e.classList.contains('sel') || cs.display==='none' || cs.visibility==='hidden') restore(id);
+  },120);
+
+  /* Screen-off / portrait / app-background must never leave a portal ghost over a card. */
+  function clearGhost(){
+    const portal=window.__piecePortal2116||document.getElementById('piecePortal2116');
+    if(portal){
+      [...portal.querySelectorAll('.piece')].forEach(e=>{
+        const id=+e.dataset.id;
+        if(!Number.isFinite(id))return;
+        try{window.normalizeToShelfV208?window.normalizeToShelfV208(id,false):home(id,false)}catch(_){try{home(id,false)}catch(__){}}
+        e.classList.remove('sel');
+      });
+    }
+    lastPieceId=null;
+    try{sel=null;drag=null;pendingPieceDrag=null;t.style.display='none';t.style.visibility='hidden'}catch(_){}
+  }
+  window.addEventListener('orientationchange',clearGhost,true);
+  window.addEventListener('pagehide',clearGhost,true);
+  window.addEventListener('blur',clearGhost,true);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearGhost()},true);
+
+  document.title='ANSSIPASI '+VERSION+' · ACTIVE PIECE POPUP STABILIZER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
