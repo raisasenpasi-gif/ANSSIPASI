@@ -9666,55 +9666,58 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.63 BANNER SHIELD + POPUP OWNER -->
+<!-- ANSSIPASI v2.1.64 PERSISTENT POPUP + SWITCH FLASH GUARD + GHOST CLEANUP -->
 <style>
-/* While a piece gesture is active, BOARD selector buttons cannot receive taps
-   through a piece that sits above them. */
-body.apPieceGesture #fullBtn,
-body.apPieceGesture #jumboBtn,
-body.apPieceGesture #partialBtn{
-  pointer-events:none!important;
+body.apBoardTransition #shelf,
+body.apBoardTransition #board,
+body.apBoardTransition #tools{
+  visibility:hidden!important;
 }
 </style>
 
 <script>
 (()=>{
-  const VERSION='v2.1.63';
-  let seqTimer=null;
-  let activeId=null;
-  let lastPointerWasPiece=false;
+  const VERSION='v2.1.64';
+  let activePieceId=null;
+  let popupLock=false;
+  let popupTimer=null;
+
+  const boardBtns='#fullBtn,#jumboBtn,#partialBtn';
+
+  function pieceEl(id){
+    return document.querySelector(`.piece[data-id="${id}"]`);
+  }
 
   function isShelfPiece(id){
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    const e=pieceEl(id);
     return !!(e && e.parentElement===shelf && !S?.[id]?.place);
   }
 
-  function normalizeSelection(id){
-    if(id==null) return;
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
-    if(!e) return;
-
-    document.querySelectorAll('.piece.sel').forEach(p=>{
-      if(p!==e) p.classList.remove('sel');
-    });
-
-    if(!isShelfPiece(id)){
-      sel=id;
-      e.classList.add('sel');
-    }else{
-      if(sel===id) sel=null;
-      e.classList.remove('sel');
-    }
+  function modalOpen(){
+    return ['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
+      'correctCard','sessionComplete','quitConfirm','stopConfirm228',
+      'boardSwitchShield211','boardSessionGate'].some(id=>{
+        const e=document.getElementById(id);
+        if(!e) return false;
+        const c=getComputedStyle(e);
+        return c.display!=='none' && c.visibility!=='hidden';
+      });
   }
 
-  function showPopupFor(id){
-    if(id==null || !S?.[id]) return;
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
+  function enforcePopup(){
+    const id=activePieceId;
+    if(id==null || modalOpen()) return;
+
+    const e=pieceEl(id);
     if(!e || isShelfPiece(id)) return;
 
-    normalizeSelection(id);
-
     try{
+      sel=id;
+      document.querySelectorAll('.piece.sel').forEach(p=>{
+        if(p!==e) p.classList.remove('sel');
+      });
+      e.classList.add('sel');
+
       tools.style.visibility='visible';
       tools.style.display='flex';
       tools.classList.remove('dragHidden');
@@ -9722,28 +9725,13 @@ body.apPieceGesture #partialBtn{
     }catch(_){}
   }
 
-  function hidePopupIfShelf(id){
-    if(id==null || !isShelfPiece(id)) return;
-    try{
-      tools.style.display='none';
-      tools.style.visibility='hidden';
-    }catch(_){}
+  function clearPopupLock(){
+    popupLock=false;
+    activePieceId=null;
+    clearTimeout(popupTimer);
+    popupTimer=null;
   }
 
-  function armPieceGesture(id){
-    activeId=id;
-    lastPointerWasPiece=true;
-    document.body.classList.add('apPieceGesture');
-
-    clearTimeout(seqTimer);
-    seqTimer=setTimeout(()=>{
-      document.body.classList.remove('apPieceGesture');
-      lastPointerWasPiece=false;
-      seqTimer=null;
-    },1400);
-  }
-
-  /* Capture at WINDOW level before legacy BOARD handlers. */
   window.addEventListener('pointerdown',ev=>{
     const p=ev.target?.closest?.('.piece');
     if(!p) return;
@@ -9751,67 +9739,112 @@ body.apPieceGesture #partialBtn{
     const id=+p.dataset.id;
     if(!Number.isFinite(id)) return;
 
-    armPieceGesture(id);
-
-    /* If the piece is already on the board/floating, popup ownership is ours. */
+    activePieceId=id;
     if(!isShelfPiece(id)){
-      [0,30].forEach(ms=>setTimeout(()=>showPopupFor(id),ms));
+      popupLock=true;
+      [0,20].forEach(ms=>setTimeout(enforcePopup,ms));
     }
   },true);
 
-  /* Keep popup attached while the selected piece crosses the BOARD banner. */
   window.addEventListener('pointermove',()=>{
-    if(activeId==null || !lastPointerWasPiece) return;
-    if(isShelfPiece(activeId)) return;
-    try{
-      if(tools.style.display!=='none') positionTools();
-    }catch(_){}
+    if(!popupLock || activePieceId==null) return;
+    if(isShelfPiece(activePieceId)) return;
+    try{positionTools();}catch(_){}
   },false);
 
-  window.addEventListener('pointerup',ev=>{
-    if(activeId==null || !lastPointerWasPiece) return;
+  window.addEventListener('pointerup',()=>{
+    const id=activePieceId;
+    if(id==null) return;
 
-    /* Keep the BOARD selector shield alive long enough for 2nd/3rd tap clicks. */
-    armPieceGesture(activeId);
+    if(isShelfPiece(id)){
+      clearPopupLock();
+      return;
+    }
 
-    const id=activeId;
-    [0,40,100,220].forEach(ms=>setTimeout(()=>{
-      if(isShelfPiece(id)) hidePopupIfShelf(id);
-      else showPopupFor(id);
+    popupLock=true;
+    [0,40,100,180,320,520].forEach(ms=>setTimeout(()=>{
+      if(activePieceId===id && popupLock && !isShelfPiece(id)) enforcePopup();
     },ms));
   },false);
 
-  /* Absolute click-through block while the physical shield is active. */
-  window.addEventListener('click',ev=>{
-    if(!document.body.classList.contains('apPieceGesture')) return;
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#startTask,#boardSessionGate button,#taskCard button')){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
+  const toolObserver = new MutationObserver(()=>{
+    if(!popupLock || activePieceId==null || modalOpen() || isShelfPiece(activePieceId)) return;
+    const cs=getComputedStyle(tools);
+    if(cs.display==='none' || cs.visibility==='hidden'){
+      requestAnimationFrame(enforcePopup);
     }
+  });
+  if(window.tools){
+    toolObserver.observe(tools,{attributes:true,attributeFilter:['style','class']});
+  }
+
+  const shelfObserver = new MutationObserver(()=>{
+    if(activePieceId!=null && isShelfPiece(activePieceId)){
+      try{
+        tools.style.display='none';
+        tools.style.visibility='hidden';
+      }catch(_){}
+      clearPopupLock();
+    }
+  });
+  if(window.shelf){
+    shelfObserver.observe(shelf,{childList:true,subtree:false});
+  }
+
+  window.addEventListener('pointerdown',ev=>{
+    const b=ev.target?.closest?.(boardBtns);
+    if(!b) return;
+    document.body.classList.add('apBoardTransition');
+
+    let n=0;
+    const wait=()=>{
+      n++;
+      const gate=document.getElementById('boardSessionGate');
+      const task=document.getElementById('taskCard');
+      const visible=e=>e && getComputedStyle(e).display!=='none' && getComputedStyle(e).visibility!=='hidden';
+
+      if(visible(gate)||visible(task)||n>20){
+        document.body.classList.remove('apBoardTransition');
+      }else{
+        requestAnimationFrame(wait);
+      }
+    };
+    requestAnimationFrame(wait);
   },true);
 
-  /* A real board switch is still allowed when there is no live piece gesture. */
-  ['fullBtn','jumboBtn','partialBtn'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('pointerdown',ev=>{
-      if(document.body.classList.contains('apPieceGesture')){
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-      }
-    },true);
-  });
-
-  /* Orientation/UI boundary: clear gesture shield, selection and popup cleanly. */
-  function clearGestureUi(){
-    document.body.classList.remove('apPieceGesture');
-    lastPointerWasPiece=false;
-    activeId=null;
-    clearTimeout(seqTimer);
-    seqTimer=null;
+  function returnPortalPieces(){
+    const portal=window.__piecePortal2116||document.getElementById('piecePortal2116');
+    if(portal){
+      [...portal.querySelectorAll('.piece')].forEach(e=>{
+        const id=+e.dataset.id;
+        if(!Number.isFinite(id)) return;
+        try{
+          if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,false);
+          else home(id,false);
+        }catch(_){ try{home(id,false);}catch(__){} }
+        e.classList.remove('sel');
+        e.style.pointerEvents='';
+        e.style.zIndex='';
+      });
+    }
+    try{
+      drag=null;
+      pendingPieceDrag=null;
+      sel=null;
+      tools.style.display='none';
+      tools.style.visibility='hidden';
+    }catch(_){}
+    clearPopupLock();
   }
-  window.addEventListener('orientationchange',clearGestureUi,true);
-  document.addEventListener('visibilitychange',()=>{ if(document.hidden) clearGestureUi(); },true);
 
-  document.title='ANSSIPASI '+VERSION+' · BANNER SHIELD + POPUP OWNER';
+  window.addEventListener('orientationchange',()=>setTimeout(returnPortalPieces,0),true);
+  window.addEventListener('pagehide',returnPortalPieces,true);
+  window.addEventListener('blur',returnPortalPieces,true);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden) returnPortalPieces();
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · PERSISTENT POPUP + SWITCH GUARD';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
