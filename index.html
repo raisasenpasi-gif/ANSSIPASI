@@ -9641,92 +9641,72 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.60 GESTURE CLICK SHIELD + POPUP STABILITY -->
+<!-- ANSSIPASI v2.1.61 TOOLBAR PERSISTENCE + CLICK SHIELD -->
 <script>
 (()=>{
-  const VERSION='v2.1.60';
-  let pieceGestureUntil=0;
-  let lastPieceId=null;
+  const VERSION='v2.1.61';
+  let pieceSeqUntil=0;
+  let activePieceId=null;
 
-  function toolbarSync(id){
-    if(id==null || !window.S || !S[id]) return;
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
-    if(!e) return;
-
-    /* Popup belongs only to a selected piece that is still on the board. */
-    if(S[id].place){
-      try{
+  const oldChoose=window.choose;
+  window.choose=function(id){
+    const r=oldChoose(id);
+    try{
+      activePieceId=id;
+      const e=document.querySelector(`.piece[data-id="${id}"]`);
+      if(e){
         sel=id;
-        document.querySelectorAll('.piece.sel').forEach(p=>{
-          if(p!==e) p.classList.remove('sel');
-        });
+        document.querySelectorAll('.piece.sel').forEach(p=>{if(p!==e)p.classList.remove('sel');});
         e.classList.add('sel');
-        if(window.tools){
-          tools.style.display='flex';
-          requestAnimationFrame(()=>requestAnimationFrame(()=>{
-            try{positionTools();}catch(_){}
-          }));
-        }
-      }catch(_){}
-    } else {
-      /* A piece returned to SHELF must not leave a stale popup behind. */
-      try{
-        if(sel===id) sel=null;
-        e.classList.remove('sel');
-        if(window.tools) tools.style.display='none';
-      }catch(_){}
-    }
+      }
+      if(window.tools){
+        tools.style.display='flex';
+        tools.classList.remove('dragHidden');
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{try{positionTools();}catch(_){}}));
+      }
+    }catch(_){}
+    return r;
+  };
+
+  function reinforceTools(id){
+    if(id==null || !S?.[id]) return;
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    if(!e || !S[id].place) return;
+    try{
+      sel=id;
+      e.classList.add('sel');
+      tools.style.display='flex';
+      tools.classList.remove('dragHidden');
+      positionTools();
+    }catch(_){}
   }
 
-  /*
-    Critical click-through fix:
-    remember that the POINTER SEQUENCE STARTED on a piece.
-    Chrome may synthesize the later click on whatever is now under the finger
-    after triple-tap sends the piece to SHELF. Blocking based on pointerup.target
-    is therefore too late and unreliable.
-  */
   window.addEventListener('pointerdown',ev=>{
     const p=ev.target?.closest?.('.piece');
     if(!p) return;
-    lastPieceId=+p.dataset.id;
-    pieceGestureUntil=performance.now()+1100;
+    activePieceId=+p.dataset.id;
+    pieceSeqUntil=performance.now()+1600;
   },true);
 
+  window.addEventListener('pointerup',()=>{
+    const id=activePieceId;
+    [0,80,180,320].forEach(ms=>setTimeout(()=>reinforceTools(id),ms));
+  },false);
+
   document.addEventListener('click',ev=>{
-    if(performance.now()>pieceGestureUntil) return;
+    if(performance.now()>pieceSeqUntil) return;
     if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#startTask,#taskCard button,#boardSessionGate button')){
       ev.preventDefault();
       ev.stopImmediatePropagation();
     }
   },true);
 
-  /*
-    Historical pointerup handlers sometimes clear selection/tool state after
-    the modern owner has already completed the drop. Reassert the correct
-    popup state after those delayed handlers have had their turn.
-  */
-  window.addEventListener('pointerup',()=>{
-    const id=lastPieceId;
-    if(id==null) return;
-    [0,90,180].forEach(ms=>setTimeout(()=>toolbarSync(id),ms));
-    setTimeout(()=>{ lastPieceId=null; },220);
-  },false);
-
-  /* Keep popup attached to the selected moving/placed piece. */
-  window.addEventListener('pointermove',()=>{
-    if(lastPieceId==null) return;
-    try{
-      if(window.tools && tools.style.display!=='none') positionTools();
-    }catch(_){}
-  },false);
-
-  /* Orientation/modal boundaries may not inherit a piece gesture click. */
   window.addEventListener('orientationchange',()=>{
-    pieceGestureUntil=0;
-    lastPieceId=null;
+    activePieceId=null;
+    pieceSeqUntil=0;
   },true);
 
-  document.title='ANSSIPASI '+VERSION+' · GESTURE SHIELD + POPUP STABILITY';
+  document.title='ANSSIPASI '+VERSION+' · TOOLBAR PERSISTENCE';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(
     c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION
   );
