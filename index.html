@@ -10241,3 +10241,84 @@ body.apBoardTransition #tools{
 })();
 </script>
 
+
+<!-- ANSSIPASI v2.1.78 POPUP VISIBILITY + SCORE DROP GUARD -->
+<style>
+#apTools2177{visibility:visible!important;pointer-events:auto!important}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.78';
+  const pop=document.getElementById('apTools2177');
+  if(!pop)return;
+
+  /* PARTIAL can retain a historical paused=true flag although the task is live.
+     The piece gestures still work in that state, but v2.1.77 used the flag to
+     suppress its popup. Do not use paused as the popup visibility authority. */
+  const livePiece=id=>{
+    id=Number(id);
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    return Number.isFinite(id)&&S?.[id]&&e&&e.parentElement!==shelf;
+  };
+
+  function selectedBoardId(){
+    const direct=Number(typeof sel!=='undefined'?sel:null);
+    if(livePiece(direct))return direct;
+    const candidates=[...document.querySelectorAll('.piece.sel,.piece.apOwner2175')]
+      .map(e=>Number(e.dataset.id)).filter(livePiece);
+    return candidates.length?candidates[candidates.length-1]:null;
+  }
+
+  function showFor(id){
+    id=Number(id);
+    if(!livePiece(id)||innerHeight>innerWidth){pop.style.display='none';return;}
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    const r=e.getBoundingClientRect(),w=224,h=46,g=7,vw=innerWidth,vh=innerHeight;
+    const spots=[
+      {x:r.left+(r.width-w)/2,y:r.top-h-g},
+      {x:r.left+(r.width-w)/2,y:r.bottom+g},
+      {x:r.right+g,y:r.top+(r.height-h)/2},
+      {x:r.left-w-g,y:r.top+(r.height-h)/2}
+    ];
+    let q=spots.find(q=>q.x>=4&&q.y>=4&&q.x+w<=vw-4&&q.y+h<=vh-4);
+    if(!q)q={x:Math.max(4,Math.min(vw-w-4,spots[0].x)),y:Math.max(4,Math.min(vh-h-4,spots[0].y))};
+    pop.style.left=q.x+'px';pop.style.top=q.y+'px';pop.style.display='block';pop.style.visibility='visible';
+  }
+
+  /* Show the isolated toolbar after a genuine board-piece release regardless
+     of the stale PARTIAL paused flag. This does not change tap/drag ownership. */
+  document.addEventListener('pointerup',ev=>{
+    if(ev.target?.closest?.('#apTools2177,#tools'))return;
+    const p=ev.target?.closest?.('.piece');
+    const id=Number(p?.dataset.id);
+    if(livePiece(id))setTimeout(()=>showFor(id),0);
+    else{
+      const sid=selectedBoardId(); if(sid!=null)setTimeout(()=>showFor(sid),0);
+    }
+  },false);
+
+  /* A board piece may overlap the banner, but SCORE is not a legal resting
+     area. If a floating piece is released with its centre inside SCORE, send it
+     back to SHELF. */
+  document.addEventListener('pointerup',()=>{
+    setTimeout(()=>{
+      const scoreBox=document.querySelector('.scoreBox,#scoreBox,#scorePanel,.scorePanel') ||
+        [...document.querySelectorAll('aside,section,div')].find(e=>/SCORE/.test(e.textContent||'')&&e.getBoundingClientRect().width>80);
+      if(!scoreBox)return;
+      const sr=scoreBox.getBoundingClientRect();
+      document.querySelectorAll('#piecePortal2116>.piece').forEach(e=>{
+        const id=Number(e.dataset.id); if(!Number.isFinite(id)||!S?.[id])return;
+        const r=e.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+        if(x>=sr.left&&x<=sr.right&&y>=sr.top&&y<=sr.bottom){
+          try{home(id,false);}catch(_){}
+          pop.style.display='none';
+        }
+      });
+    },0);
+  },false);
+
+  document.title='ANSSIPASI '+VERSION+' · POPUP VISIBILITY FIX';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
