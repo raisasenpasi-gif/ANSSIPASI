@@ -10851,10 +10851,11 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.73 TOOLBAR OWNER SNAPSHOT -->
+
+<!-- ANSSIPASI v2.1.74 STABLE TOOLBAR OWNER -->
 <script>
 (()=>{
-  const VERSION='v2.1.73';
+  const VERSION='v2.1.74';
   const tools=document.getElementById('tools');
   const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
   const onShelf=id=>{
@@ -10862,94 +10863,44 @@ body.apBoardTransition #tools{
     return !!(e && e.parentElement===shelf && !S?.[id]?.place);
   };
 
-  /* v2.1.73 root fix:
-     legacy WINDOW-capture handlers run before the toolbar button itself receives
-     pointerdown. They may change sel/active state according to coordinates behind
-     the popup. Therefore each toolbar button gets an immutable owner snapshot at
-     the moment a piece is selected. Toolbar commands read ONLY that snapshot. */
-  function stampToolbarOwner(id){
-    id=Number(id);
-    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)) return false;
+  /* v2.1.74: keep the last REAL square touched as the command owner.
+     Do not repaint/reselect pieces here. This avoids the v2.1.73 fight where
+     several delayed selection writers made neighbouring pieces flicker. */
+  window.__apStableToolbarOwner2174=null;
+
+  function realTargetId(ev){
+    const block=ev.target?.closest?.('.piece .block');
+    const p=block?.closest?.('.piece');
+    const id=Number(p?.dataset.id);
+    return Number.isFinite(id)&&S?.[id]&&!onShelf(id) ? id : null;
+  }
+
+  /* Registered on document capture: legacy window handlers may run first, but this
+     simply records the piece the finger actually touched. No visual writes, no timers. */
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#tools')) return;
+    const id=realTargetId(ev);
+    if(id==null) return;
+    window.__apStableToolbarOwner2174=id;
     if(tools) tools.dataset.ownerId=String(id);
-    ['rot','flp','back'].forEach(k=>{
-      const b=document.getElementById(k);
-      if(b) b.dataset.boundOwner=String(id);
-    });
-    window.__apPopupOwner2173=id;
-    return true;
-  }
-
-  function forceVisualOwner(id){
-    id=Number(id);
-    if(!stampToolbarOwner(id)) return;
-    window.__apPopupOwner2172=id;
-    window.__apDirectActive2170=id;
-    window.__apCanonicalPiece2169=id;
-    window.__apActivePieceId2167=id;
-    window.__apActivePiece2171=id;
-    try{sel=id;}catch(_){ }
-    document.querySelectorAll('.piece').forEach(p=>{
-      const same=Number(p.dataset.id)===id;
-      p.classList.toggle('sel',same);
-      p.classList.toggle('apActive2171',same);
-      p.classList.toggle('apOwner2172',same);
-      p.classList.toggle('apOwner2173',same);
-      if(!same && (p.style.zIndex==='2147483646'||p.style.zIndex==='2147483645')) p.style.zIndex='5';
-    });
-    const e=pieceEl(id);
-    if(e) e.style.zIndex='2147483646';
-    if(tools){
-      tools.style.display='flex';
-      tools.style.visibility='visible';
-      tools.classList.remove('dragHidden');
-      tools.style.zIndex='2147483647';
-    }
-  }
-
-  function exactRealSquare(ev){
-    const x=ev.clientX,y=ev.clientY;
-    const hits=[];
-    document.querySelectorAll('.piece .block').forEach(b=>{
-      const r=b.getBoundingClientRect();
-      if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom){
-        const p=b.closest('.piece');
-        const id=Number(p?.dataset.id);
-        if(Number.isFinite(id)&&!onShelf(id)) hits.push({id,p});
-      }
-    });
-    if(!hits.length) return null;
-    hits.sort((a,b)=>{
-      const za=Number(getComputedStyle(a.p).zIndex)||0;
-      const zb=Number(getComputedStyle(b.p).zIndex)||0;
-      if(za!==zb) return zb-za;
-      const all=[...document.querySelectorAll('.piece')];
-      return all.indexOf(b.p)-all.indexOf(a.p);
-    });
-    return hits[0].id;
-  }
-
-  /* Selection stamps the command owner before any toolbar use. */
-  window.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#tools')) return;
-    const id=exactRealSquare(ev);
-    if(id==null) return;
-    forceVisualOwner(id);
-    [0,40,120].forEach(ms=>setTimeout(()=>{
-      if(Number(window.__apPopupOwner2173)===id) forceVisualOwner(id);
-    },ms));
   },true);
 
-  window.addEventListener('pointerup',ev=>{
+  document.addEventListener('pointerup',ev=>{
     if(ev.target?.closest?.('#tools')) return;
-    const id=exactRealSquare(ev);
+    const id=realTargetId(ev);
     if(id==null) return;
-    forceVisualOwner(id);
-    [0,60,160].forEach(ms=>setTimeout(()=>{
-      if(Number(window.__apPopupOwner2173)===id) forceVisualOwner(id);
-    },ms));
+    window.__apStableToolbarOwner2174=id;
+    if(tools) tools.dataset.ownerId=String(id);
   },true);
 
-  function transformSnapshot(id,kind){
+  function stableOwner(){
+    let id=Number(window.__apStableToolbarOwner2174);
+    if(Number.isFinite(id)&&S?.[id]&&!onShelf(id)) return id;
+    id=Number(tools?.dataset.ownerId);
+    return Number.isFinite(id)&&S?.[id]&&!onShelf(id)?id:null;
+  }
+
+  function directTransform(id,kind){
     id=Number(id);
     if(!Number.isFinite(id)||!S?.[id]||onShelf(id)||paused) return;
     const e0=pieceEl(id); if(!e0)return;
@@ -10964,42 +10915,48 @@ body.apBoardTransition #tools{
     const e=pieceEl(id); if(!e)return;
     portal.append(e);
     Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
-    forceVisualOwner(id);
+    window.__apStableToolbarOwner2174=id;
+    if(tools) tools.dataset.ownerId=String(id);
+    /* Let the already working v2.1.72 visual owner paint glow/popup. */
+    try{
+      window.__apPopupOwner2172=id;
+      window.__apDirectActive2170=id;
+      window.__apCanonicalPiece2169=id;
+      window.__apActivePieceId2167=id;
+      window.__apActivePiece2171=id;
+      sel=id;
+    }catch(_){ }
   }
 
-  function shelfSnapshot(id){
+  function directShelf(id){
     id=Number(id);
-    if(!Number.isFinite(id)||!S?.[id]) return;
+    if(!Number.isFinite(id)||!S?.[id])return;
     try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
-    catch(_){ try{home(id,false);}catch(__){} }
+    catch(_){try{home(id,false);}catch(__){}}
+    window.__apStableToolbarOwner2174=null;
     if(tools){tools.dataset.ownerId='';tools.style.display='none';tools.style.visibility='hidden';}
-    ['rot','flp','back'].forEach(k=>{const b=document.getElementById(k);if(b)b.dataset.boundOwner='';});
-    window.__apPopupOwner2173=null;
-    document.querySelectorAll('.piece').forEach(p=>p.classList.remove('sel','apActive2171','apOwner2172','apOwner2173'));
   }
 
   function hardRebind(id,kind){
     const old=document.getElementById(id); if(!old)return;
     const b=old.cloneNode(true); old.replaceWith(b);
-    /* carry the last stamped owner if present */
-    const current=Number(window.__apPopupOwner2173);
-    if(Number.isFinite(current)) b.dataset.boundOwner=String(current);
     const run=ev=>{
-      const snap=Number(b.dataset.boundOwner);
+      /* The owner was captured from the real piece before touching the toolbar.
+         Legacy capture handlers are therefore irrelevant to command targeting. */
+      const id=stableOwner();
       ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
-      if(!Number.isFinite(snap)||!S?.[snap]||onShelf(snap)) return;
-      /* undo any legacy capture-time owner switch before executing */
-      forceVisualOwner(snap);
-      if(kind==='s') shelfSnapshot(snap); else transformSnapshot(snap,kind);
+      if(id==null)return;
+      if(kind==='s') directShelf(id); else directTransform(id,kind);
     };
     b.addEventListener('pointerdown',run,true);
     b.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();},true);
   }
+
   hardRebind('rot','r');
   hardRebind('flp','f');
   hardRebind('back','s');
 
-  document.title='ANSSIPASI '+VERSION+' · TOOLBAR OWNER SNAPSHOT';
+  document.title='ANSSIPASI '+VERSION+' · STABLE TOOLBAR OWNER';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
