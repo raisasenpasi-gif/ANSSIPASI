@@ -10697,3 +10697,155 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.72 POPUP-BOUND OWNER -->
+<script>
+(()=>{
+  const VERSION='v2.1.72';
+  const tools=document.getElementById('tools');
+  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const onShelf=id=>{
+    const e=pieceEl(id);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  };
+
+  /* The popup itself now remembers exactly which piece owns it. This removes the
+     last ambiguity between visible glow, legacy selection variables and toolbar actions. */
+  function bindOwner(id){
+    id=Number(id);
+    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)) return false;
+    if(tools) tools.dataset.ownerId=String(id);
+    window.__apPopupOwner2172=id;
+    window.__apDirectActive2170=id;
+    window.__apCanonicalPiece2169=id;
+    window.__apActivePieceId2167=id;
+    window.__apActivePiece2171=id;
+    try{ sel=id; }catch(_){ }
+    document.querySelectorAll('.piece').forEach(p=>{
+      const same=Number(p.dataset.id)===id;
+      p.classList.toggle('sel',same);
+      p.classList.toggle('apActive2171',same);
+      p.classList.toggle('apOwner2172',same);
+      if(!same && p.style.zIndex==='2147483646') p.style.zIndex='5';
+    });
+    const e=pieceEl(id);
+    if(e) e.style.zIndex='2147483646';
+    return true;
+  }
+
+  function ownerFromPopup(){
+    let id=Number(tools?.dataset.ownerId);
+    if(Number.isFinite(id)&&S?.[id]&&!onShelf(id)) return id;
+    const p=document.querySelector('.piece.apOwner2172,.piece.apActive2171,.piece.sel');
+    id=Number(p?.dataset.id);
+    return Number.isFinite(id)&&S?.[id]&&!onShelf(id)?id:null;
+  }
+
+  function exactBlockHit(ev){
+    const x=ev.clientX,y=ev.clientY;
+    const blocks=[...document.querySelectorAll('.piece .block')].filter(b=>{
+      const r=b.getBoundingClientRect();
+      return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
+    });
+    if(!blocks.length) return null;
+    /* Pick the visually uppermost real square, never a transparent bounding-box area. */
+    blocks.sort((a,b)=>{
+      const pa=a.closest('.piece'), pb=b.closest('.piece');
+      const za=Number(getComputedStyle(pa).zIndex)||0, zb=Number(getComputedStyle(pb).zIndex)||0;
+      if(za!==zb) return zb-za;
+      const all=[...document.querySelectorAll('.piece')];
+      return all.indexOf(pb)-all.indexOf(pa);
+    });
+    const p=blocks[0].closest('.piece');
+    const id=Number(p?.dataset.id);
+    return Number.isFinite(id)?id:null;
+  }
+
+  function keepOwner(id){
+    if(!bindOwner(id)) return;
+    const e=pieceEl(id); if(!e||!tools) return;
+    tools.style.display='flex';
+    tools.style.visibility='visible';
+    tools.classList.remove('dragHidden');
+    tools.style.zIndex='2147483647';
+    e.style.zIndex='2147483646';
+  }
+
+  window.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#tools')) return;
+    const id=exactBlockHit(ev);
+    if(id==null||onShelf(id)) return;
+    bindOwner(id);
+    [0,35,100,220].forEach(ms=>setTimeout(()=>{
+      if(Number(tools?.dataset.ownerId)===id) keepOwner(id);
+    },ms));
+  },true);
+
+  window.addEventListener('pointerup',ev=>{
+    if(ev.target?.closest?.('#tools')) return;
+    const id=exactBlockHit(ev) ?? ownerFromPopup();
+    if(id==null||onShelf(id)) return;
+    bindOwner(id);
+    [0,60,160].forEach(ms=>setTimeout(()=>{
+      if(Number(tools?.dataset.ownerId)===id) keepOwner(id);
+    },ms));
+  },true);
+
+  function directTransform(id,kind){
+    id=Number(id);
+    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)||paused) return;
+    const e0=pieceEl(id); if(!e0)return;
+    const r=e0.getBoundingClientRect();
+    if(S[id].place) try{clear(id);}catch(_){ }
+    const portal=window.__piecePortal2116||document.body;
+    portal.append(e0);
+    Object.assign(e0.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
+    const c=S[id].c;
+    S[id].c = kind==='r' ? norm(c.map(q=>[-q[1],q[0]])) : norm(c.map(q=>[-q[0],q[1]]));
+    try{render(id);}catch(_){return;}
+    const e=pieceEl(id); if(!e)return;
+    portal.append(e);
+    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
+    bindOwner(id);
+    keepOwner(id);
+  }
+
+  function directShelf(id){
+    id=Number(id);
+    if(!Number.isFinite(id)||!S?.[id])return;
+    try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
+    catch(_){try{home(id,false);}catch(__){}}
+    if(tools){ tools.dataset.ownerId=''; tools.style.display='none'; tools.style.visibility='hidden'; }
+    window.__apPopupOwner2172=null;
+    document.querySelectorAll('.piece').forEach(p=>p.classList.remove('sel','apActive2171','apOwner2172'));
+  }
+
+  function rebind(id,fn){
+    const old=document.getElementById(id); if(!old)return;
+    const b=old.cloneNode(true); old.replaceWith(b);
+    b.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
+      const owner=ownerFromPopup();
+      if(owner!=null) fn(owner);
+    },true);
+    b.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();},true);
+  }
+  rebind('rot',id=>directTransform(id,'r'));
+  rebind('flp',id=>directTransform(id,'f'));
+  rebind('back',directShelf);
+
+  /* If any legacy code paints a different .sel, restore the popup-bound owner. */
+  setInterval(()=>{
+    const id=ownerFromPopup();
+    if(id==null)return;
+    const p=pieceEl(id);
+    if(!p)return;
+    if(!p.classList.contains('sel')||!p.classList.contains('apOwner2172')||
+       tools?.style.display==='none'||tools?.style.visibility==='hidden') keepOwner(id);
+  },55);
+
+  document.title='ANSSIPASI '+VERSION+' · POPUP-BOUND OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
