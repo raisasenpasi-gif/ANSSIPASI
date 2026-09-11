@@ -10306,3 +10306,173 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.70 DIRECT PIECE OWNER + PARTIAL NEXT GUARD -->
+<script>
+(()=>{
+  const VERSION='v2.1.70';
+  let activeId=null;
+  let restoreToken=0;
+
+  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const onShelf=id=>{
+    const e=pieceEl(id);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  };
+  const modalOpen=()=>['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
+    'correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211','boardSessionGate']
+    .some(id=>{
+      const e=document.getElementById(id); if(!e)return false;
+      const c=getComputedStyle(e); return c.display!=='none'&&c.visibility!=='hidden';
+    });
+
+  function positionFor(id){
+    const e=pieceEl(id), t=document.getElementById('tools');
+    if(!e||!t||onShelf(id)) return;
+    const r=e.getBoundingClientRect();
+    t.style.display='flex';
+    t.style.visibility='visible';
+    t.classList.remove('dragHidden');
+    requestAnimationFrame(()=>{
+      const tr=t.getBoundingClientRect(), gap=8, vw=innerWidth, vh=innerHeight;
+      const opts=[
+        [r.left+(r.width-tr.width)/2,r.top-tr.height-gap],
+        [r.left+(r.width-tr.width)/2,r.bottom+gap],
+        [r.right+gap,r.top+(r.height-tr.height)/2],
+        [r.left-tr.width-gap,r.top+(r.height-tr.height)/2]
+      ];
+      let pos=opts.find(([x,y])=>x>=4&&y>=4&&x+tr.width<=vw-4&&y+tr.height<=vh-4);
+      if(!pos) pos=[Math.max(4,Math.min(vw-tr.width-4,opts[0][0])),Math.max(4,Math.min(vh-tr.height-4,opts[0][1]))];
+      t.style.left=pos[0]+'px';
+      t.style.top=pos[1]+'px';
+    });
+  }
+
+  function activate(id){
+    id=Number(id);
+    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)) return false;
+    activeId=id;
+    window.__apDirectActive2170=id;
+    window.__apCanonicalPiece2169=id;
+    window.__apActivePieceId2167=id;
+    sel=id;
+    const e=pieceEl(id);
+    document.querySelectorAll('.piece.sel').forEach(p=>{ if(p!==e)p.classList.remove('sel'); });
+    if(e)e.classList.add('sel');
+    positionFor(id);
+    return true;
+  }
+
+  function keepActive(id){
+    const token=++restoreToken;
+    [0,40,100,220,450,800].forEach(ms=>setTimeout(()=>{
+      if(token!==restoreToken || activeId!==id || onShelf(id) || modalOpen()) return;
+      activate(id);
+    },ms));
+  }
+
+  function clearActive(id=null){
+    if(id!=null && activeId!==id) return;
+    activeId=null;
+    window.__apDirectActive2170=null;
+    window.__apCanonicalPiece2169=null;
+    window.__apActivePieceId2167=null;
+    sel=null;
+    document.querySelectorAll('.piece.sel').forEach(p=>p.classList.remove('sel'));
+    const t=document.getElementById('tools');
+    if(t){t.style.display='none';t.style.visibility='hidden';}
+  }
+
+  /* Every touch on a placed/floating piece becomes authoritative immediately.
+     This bypasses historical activeId/sel races completely. */
+  window.addEventListener('pointerdown',ev=>{
+    const p=ev.target?.closest?.('.piece');
+    if(!p) return;
+    const id=Number(p.dataset.id);
+    if(!Number.isFinite(id)||onShelf(id)) return;
+    activate(id);
+    keepActive(id);
+  },true);
+
+  window.addEventListener('pointerup',ev=>{
+    const p=ev.target?.closest?.('.piece');
+    const id=p?Number(p.dataset.id):activeId;
+    if(!Number.isFinite(id)||onShelf(id)) return;
+    activeId=id;
+    keepActive(id);
+  },true);
+
+  /* Explicit-id transform. Do not call the historical transform() chain at all. */
+  function directTransform(kind){
+    const id=Number(activeId);
+    if(!Number.isFinite(id)||!S?.[id]||paused||onShelf(id)) return;
+    const e0=pieceEl(id); if(!e0)return;
+    const r=e0.getBoundingClientRect();
+    if(S[id].place) try{clear(id);}catch(_){}
+    const portal=window.__piecePortal2116||document.body;
+    portal.append(e0);
+    Object.assign(e0.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
+    const c=S[id].c;
+    S[id].c = kind==='r'
+      ? norm(c.map(q=>[-q[1],q[0]]))
+      : norm(c.map(q=>[-q[0],q[1]]));
+    try{render(id);}catch(_){return;}
+    const e=pieceEl(id); if(!e)return;
+    portal.append(e);
+    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
+    activate(id);
+    keepActive(id);
+    try{moves += kind==='r'?.25:.5; const m=document.getElementById('moves'); if(m)m.textContent=moves;}catch(_){}
+    try{buzz(kind==='r'?12:[10,25,10]);}catch(_){}
+    try{info.innerHTML=kind==='r'?'<b>↻ ROTATE</b><br>Piece is lifted. Temporary overlap is allowed until DROP.':'<b>⇋ FLIP</b><br>Piece is lifted. Temporary overlap is allowed until DROP.';}catch(_){}
+  }
+
+  function directShelf(){
+    const id=Number(activeId);
+    if(!Number.isFinite(id)||!S?.[id]) return;
+    try{
+      if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true);
+      else home(id,false);
+    }catch(_){ try{home(id,false);}catch(__){} }
+    try{moves+=.5; const m=document.getElementById('moves'); if(m)m.textContent=moves;}catch(_){}
+    clearActive(id);
+  }
+
+  /* Replace toolbar controls one final time so no historical listener survives. */
+  function replaceTool(id,fn){
+    const old=document.getElementById(id); if(!old)return;
+    const b=old.cloneNode(true); old.replaceWith(b);
+    b.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); fn();
+    },true);
+    b.addEventListener('click',ev=>{
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+    },true);
+  }
+  replaceTool('rot',()=>directTransform('r'));
+  replaceTool('flp',()=>directTransform('f'));
+  replaceTool('back',directShelf);
+
+  /* PARTIAL NEXT TASK must use the confirmation card once play has begun. */
+  const nt=document.getElementById('nextTop');
+  if(nt){
+    const fresh=nt.cloneNode(true); nt.replaceWith(fresh);
+    fresh.addEventListener('click',ev=>{
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+      const progressed = (typeof moves!=='undefined'&&moves>0) || (typeof score!=='undefined'&&score>0) ||
+        (Array.isArray(ids)&&ids.some(id=>S?.[id]?.place));
+      if(typeof solved!=='undefined' && solved){ resetRun(true); return; }
+      if(progressed){
+        const modal=document.getElementById('nextConfirm');
+        if(modal){modal.style.display='flex'; return;}
+      }
+      resetRun(true);
+    },true);
+  }
+
+  document.title='ANSSIPASI '+VERSION+' · DIRECT PIECE OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
