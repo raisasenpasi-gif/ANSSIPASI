@@ -10476,3 +10476,224 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.71 SINGLE VISUAL OWNER + HITMAP + SAFE DROP -->
+<style id="ap2171Style">
+/* Only visible squares receive touches. Transparent holes in polyomino bounding boxes
+   must never steal a neighbour's tap. */
+.piece{pointer-events:none!important}
+.piece .block{pointer-events:auto!important}
+#piecePortal2116>.piece,#piecePortal2116>.piece.sel{pointer-events:none!important}
+#piecePortal2116>.piece .block,#piecePortal2116>.piece.sel .block{pointer-events:auto!important}
+/* Popup is always the top UI layer. The active piece is above every other piece,
+   but still below its own popup. */
+#tools{z-index:2147483647!important;pointer-events:auto!important}
+.piece.apActive2171{z-index:2147483646!important}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.71';
+  let activeId=null;
+  let pieceGuardUntil=0;
+  let syncing=false;
+
+  const toolsEl=()=>document.getElementById('tools');
+  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const visiblePieceFromEvent=ev=>{
+    const block=ev.target?.closest?.('.block');
+    const p=block?.closest?.('.piece');
+    if(!p) return null;
+    const id=Number(p.dataset.id);
+    return Number.isFinite(id)?{id,p}:null;
+  };
+  const onShelf=id=>{
+    const e=pieceEl(id);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  };
+  const modalOpen=()=>['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
+    'correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211','boardSessionGate']
+    .some(id=>{
+      const e=document.getElementById(id); if(!e)return false;
+      const c=getComputedStyle(e); return c.display!=='none'&&c.visibility!=='hidden';
+    });
+
+  function setCanonical(id){
+    activeId=id;
+    window.__apDirectActive2170=id;
+    window.__apCanonicalPiece2169=id;
+    window.__apActivePieceId2167=id;
+    window.__apActivePiece2171=id;
+    sel=id;
+  }
+
+  function clearVisualOnly(){
+    document.querySelectorAll('.piece').forEach(p=>{
+      p.classList.remove('sel','apActive2171');
+      if(p.parentElement===board && p.style.zIndex==='2147483646') p.style.zIndex='5';
+    });
+  }
+
+  function placeToolsNow(id){
+    const e=pieceEl(id), t=toolsEl();
+    if(!e||!t||onShelf(id)||modalOpen()) return;
+    const r=e.getBoundingClientRect();
+    t.style.display='flex';
+    t.style.visibility='visible';
+    t.classList.remove('dragHidden');
+    t.style.zIndex='2147483647';
+    /* Force layout immediately, then choose the first fully visible position. */
+    const tr=t.getBoundingClientRect(), gap=8, vw=innerWidth, vh=innerHeight;
+    const opts=[
+      [r.left+(r.width-tr.width)/2,r.top-tr.height-gap],
+      [r.left+(r.width-tr.width)/2,r.bottom+gap],
+      [r.right+gap,r.top+(r.height-tr.height)/2],
+      [r.left-tr.width-gap,r.top+(r.height-tr.height)/2]
+    ];
+    let pos=opts.find(([x,y])=>x>=4&&y>=4&&x+tr.width<=vw-4&&y+tr.height<=vh-4);
+    if(!pos) pos=[Math.max(4,Math.min(vw-tr.width-4,opts[0][0])),Math.max(4,Math.min(vh-tr.height-4,opts[0][1]))];
+    t.style.left=pos[0]+'px';
+    t.style.top=pos[1]+'px';
+  }
+
+  function enforce(id=activeId){
+    id=Number(id);
+    if(syncing||!Number.isFinite(id)||!S?.[id]||onShelf(id)||modalOpen()) return false;
+    const e=pieceEl(id); if(!e)return false;
+    syncing=true;
+    try{
+      setCanonical(id);
+      document.querySelectorAll('.piece').forEach(p=>{
+        const same=Number(p.dataset.id)===id;
+        p.classList.toggle('sel',same);
+        p.classList.toggle('apActive2171',same);
+        if(!same && p.parentElement===board && p.style.zIndex==='2147483646') p.style.zIndex='5';
+      });
+      e.style.zIndex='2147483646';
+      placeToolsNow(id);
+    } finally { syncing=false; }
+    return true;
+  }
+
+  function deactivate(){
+    activeId=null;
+    window.__apDirectActive2170=null;
+    window.__apCanonicalPiece2169=null;
+    window.__apActivePieceId2167=null;
+    window.__apActivePiece2171=null;
+    sel=null;
+    clearVisualOnly();
+    const t=toolsEl();
+    if(t){t.style.display='none';t.style.visibility='hidden';}
+  }
+
+  /* A visible square becomes the single owner immediately. */
+  window.addEventListener('pointerdown',ev=>{
+    const hit=visiblePieceFromEvent(ev);
+    if(!hit) return;
+    if(onShelf(hit.id)) return;
+    pieceGuardUntil=performance.now()+900;
+    enforce(hit.id);
+    /* Reassert after legacy async handlers have had their turn. */
+    [0,25,70,150,320].forEach(ms=>setTimeout(()=>{
+      if(activeId===hit.id && !onShelf(hit.id)) enforce(hit.id);
+    },ms));
+  },true);
+
+  window.addEventListener('pointerup',ev=>{
+    const hit=visiblePieceFromEvent(ev);
+    const id=hit?.id ?? activeId;
+    if(!Number.isFinite(Number(id))) return;
+    if(onShelf(Number(id))){ if(activeId===Number(id)) deactivate(); return; }
+    setTimeout(()=>{ if(activeId===Number(id)) enforce(Number(id)); },0);
+    setTimeout(()=>{ if(activeId===Number(id)) enforce(Number(id)); },90);
+    setTimeout(()=>{ if(activeId===Number(id)) enforce(Number(id)); },240);
+  },true);
+
+  /* Old delayed popup/selection writers are neutralised by a tiny owner heartbeat.
+     It only runs while a placed/floating piece is active. */
+  setInterval(()=>{
+    if(activeId==null||modalOpen()||onShelf(activeId)) return;
+    const e=pieceEl(activeId), t=toolsEl();
+    if(!e)return;
+    const wrongSel=document.querySelector('.piece.sel:not(.apActive2171)');
+    if(wrongSel || !e.classList.contains('sel') || !e.classList.contains('apActive2171') ||
+       !t || t.style.display==='none' || t.style.visibility==='hidden' || t.classList.contains('dragHidden')){
+      enforce(activeId);
+    }
+  },70);
+
+  /* Keep popup attached immediately after rotation/flip or DOM replacement. */
+  const mo=new MutationObserver(()=>{
+    if(syncing||activeId==null||modalOpen()||onShelf(activeId)) return;
+    queueMicrotask(()=>{ if(activeId!=null) enforce(activeId); });
+  });
+  mo.observe(document.body,{subtree:true,childList:true});
+
+  /* A synthetic click created by double/triple tapping a piece over the board selector
+     must never start a new task/board. */
+  document.addEventListener('click',ev=>{
+    if(performance.now()>pieceGuardUntil) return;
+    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#modeChooser,#boardSessionGate')){
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+    }
+  },true);
+
+  /* Do not allow a released piece to live on the SCORE panel. If a floating piece is
+     dropped there, return it cleanly to SHELF. Board and banner remain valid zones. */
+  window.addEventListener('pointerup',()=>{
+    setTimeout(()=>{
+      document.querySelectorAll('.piece').forEach(p=>{
+        const id=Number(p.dataset.id); if(!Number.isFinite(id)||onShelf(id))return;
+        const r=p.getBoundingClientRect();
+        const score=document.getElementById('sideScore')?.getBoundingClientRect();
+        if(!score)return;
+        const cx=r.left+r.width/2, cy=r.top+r.height/2;
+        if(cx>=score.left&&cx<=score.right&&cy>=score.top&&cy<=score.bottom){
+          try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
+          catch(_){try{home(id,false);}catch(__){}}
+          if(activeId===id) deactivate();
+        }
+      });
+    },40);
+  },true);
+
+  /* Toolbar should always command the canonical owner, even if an older closure
+     has stale state. Clone once more and bind directly to the single owner. */
+  function rotateOrFlip(kind){
+    const id=Number(activeId);
+    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)||paused) return;
+    const e0=pieceEl(id); if(!e0)return;
+    const r=e0.getBoundingClientRect();
+    if(S[id].place) try{clear(id);}catch(_){ }
+    const portal=window.__piecePortal2116||document.body;
+    portal.append(e0);
+    Object.assign(e0.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
+    const c=S[id].c;
+    S[id].c = kind==='r' ? norm(c.map(q=>[-q[1],q[0]])) : norm(c.map(q=>[-q[0],q[1]]));
+    try{render(id);}catch(_){return;}
+    const e=pieceEl(id); if(!e)return;
+    portal.append(e);
+    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
+    enforce(id);
+  }
+  function toShelf(){
+    const id=Number(activeId); if(!Number.isFinite(id)||!S?.[id])return;
+    try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
+    catch(_){try{home(id,false);}catch(__){}}
+    deactivate();
+  }
+  function rebind(id,fn){
+    const old=document.getElementById(id); if(!old)return;
+    const b=old.cloneNode(true); old.replaceWith(b);
+    b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();fn();},true);
+    b.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();},true);
+  }
+  rebind('rot',()=>rotateOrFlip('r'));
+  rebind('flp',()=>rotateOrFlip('f'));
+  rebind('back',toShelf);
+
+  document.title='ANSSIPASI '+VERSION+' · SINGLE VISUAL OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
