@@ -9583,6 +9583,15 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     const hit=partialPieceAt(ev.clientX,ev.clientY);
     if(!hit)return;
 
+    /* v2.1.67: one authoritative active-piece identity. Older popup layers
+       kept their own activeId and could rotate the previous piece even after
+       another visible piece was touched. Sync every real piece touch here,
+       before this owner stops propagation. */
+    window.__apActivePieceId2167=hit.id;
+    try{
+      window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id:hit.id}}));
+    }catch(_){}
+
     pq={
       id:hit.id,pointerId:ev.pointerId,
       startX:ev.clientX,startY:ev.clientY,
@@ -9741,6 +9750,22 @@ body.apBoardTransition #tools{
     clearTimeout(popupTimer);
     popupTimer=null;
   }
+
+  /* v2.1.67: the unified pointer owner stops propagation on real piece taps,
+     so receive its explicit active-piece signal instead of relying on a later
+     pointerdown listener that may never run. */
+  window.addEventListener('ap-active-piece',ev=>{
+    const id=Number(ev.detail?.id);
+    if(!Number.isFinite(id)) return;
+    activePieceId=id;
+    window.__apActivePieceId2167=id;
+    popupLock=!isShelfPiece(id);
+    if(popupLock){
+      [0,20,70].forEach(ms=>setTimeout(()=>{
+        if(activePieceId===id) enforcePopup();
+      },ms));
+    }
+  });
 
   window.addEventListener('pointerdown',ev=>{
     const p=ev.target?.closest?.('.piece');
@@ -10017,6 +10042,69 @@ body.apBoardTransition #tools{
 (()=>{
   const VERSION='v2.1.66';
   document.title='ANSSIPASI '+VERSION+' · BLOCK-AWARE PIECE HIT TEST';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
+
+
+<!-- ANSSIPASI v2.1.67 AUTHORITATIVE ACTIVE PIECE -->
+<script>
+(()=>{
+  const VERSION='v2.1.67';
+  const getId=()=>{
+    const id=Number(window.__apActivePieceId2167);
+    if(Number.isFinite(id) && S?.[id]) return id;
+    if(Number.isFinite(Number(sel)) && S?.[Number(sel)]) return Number(sel);
+    return null;
+  };
+
+  function selectExact(id){
+    if(id==null || !S?.[id]) return false;
+    window.__apActivePieceId2167=id;
+    sel=id;
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    if(!e) return false;
+    document.querySelectorAll('.piece.sel').forEach(p=>{ if(p!==e) p.classList.remove('sel'); });
+    e.classList.add('sel');
+    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){}
+    return true;
+  }
+
+  function doTransform(kind){
+    const id=getId();
+    if(id==null || paused) return;
+    if(!selectExact(id)) return;
+    try{transform(kind);}catch(_){}
+    window.__apActivePieceId2167=id;
+    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){}
+  }
+
+  const r=document.getElementById('rot');
+  const f=document.getElementById('flp');
+  const b=document.getElementById('back');
+  if(r){
+    r.onpointerdown=ev=>{ev.preventDefault();ev.stopImmediatePropagation();doTransform('r');};
+    r.onclick=ev=>{ev.preventDefault();ev.stopImmediatePropagation();};
+  }
+  if(f){
+    f.onpointerdown=ev=>{ev.preventDefault();ev.stopImmediatePropagation();doTransform('f');};
+    f.onclick=ev=>{ev.preventDefault();ev.stopImmediatePropagation();};
+  }
+  if(b){
+    b.onpointerdown=ev=>{
+      ev.preventDefault();ev.stopImmediatePropagation();
+      const id=getId(); if(id==null) return;
+      selectExact(id);
+      try{ if(window.normalizeToShelfV208) normalizeToShelfV208(id,true); else home(id,false); }catch(_){ try{home(id,false);}catch(__){} }
+      window.__apActivePieceId2167=null;
+      sel=null;
+      try{tools.style.display='none';tools.style.visibility='hidden';}catch(_){}
+    };
+    b.onclick=ev=>{ev.preventDefault();ev.stopImmediatePropagation();};
+  }
+
+  document.title='ANSSIPASI '+VERSION+' · AUTHORITATIVE ACTIVE PIECE';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
