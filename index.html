@@ -9527,8 +9527,18 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     for(const e of pieces){
       const id=+e.dataset.id;
       if(!Number.isFinite(id))continue;
+      /* v2.1.66: hit-test only the visible squares of the polyomino.
+         The old parent rectangle also covered the shape's empty cells and could
+         steal taps from a neighbouring piece, making the active piece feel locked. */
+      const blocks=[...e.querySelectorAll('.block')];
+      let hit=false;
+      for(const b of blocks){
+        const br=b.getBoundingClientRect();
+        if(inside(x,y,br)){hit=true;break;}
+      }
+      if(!hit)continue;
       const r=e.getBoundingClientRect();
-      if(inside(x,y,r))return {id,e,r};
+      return {id,e,r};
     }
     return null;
   }
@@ -9996,6 +10006,17 @@ body.apBoardTransition #tools{
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clearGhost()},true);
 
   document.title='ANSSIPASI '+VERSION+' · ACTIVE PIECE POPUP STABILIZER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
+
+
+<!-- ANSSIPASI v2.1.66 BLOCK-AWARE PIECE HIT TEST -->
+<script>
+(()=>{
+  const VERSION='v2.1.66';
+  document.title='ANSSIPASI '+VERSION+' · BLOCK-AWARE PIECE HIT TEST';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
