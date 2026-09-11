@@ -10190,3 +10190,119 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.69 CANONICAL TOOLBAR OWNER -->
+<script>
+(()=>{
+  const VERSION='v2.1.69';
+  let canonicalId=null;
+
+  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const onShelf=id=>{
+    const e=pieceEl(id);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  };
+
+  function setCanonical(id){
+    id=Number(id);
+    if(!Number.isFinite(id) || !S?.[id]) return false;
+    canonicalId=id;
+    window.__apCanonicalPiece2169=id;
+    window.__apActivePieceId2167=id;
+    sel=id;
+    const e=pieceEl(id);
+    if(e && !onShelf(id)){
+      document.querySelectorAll('.piece.sel').forEach(p=>{ if(p!==e) p.classList.remove('sel'); });
+      e.classList.add('sel');
+      try{
+        tools.style.display='flex';
+        tools.style.visibility='visible';
+        tools.classList.remove('dragHidden');
+        requestAnimationFrame(()=>{ try{positionTools();}catch(_){} });
+      }catch(_){}
+    }
+    return true;
+  }
+
+  /* The PARTIAL pointer owner already knows exactly which visible block was touched.
+     Its signal is now the ONLY source of truth for toolbar commands. */
+  window.addEventListener('ap-active-piece',ev=>{
+    const id=Number(ev.detail?.id);
+    if(!Number.isFinite(id)) return;
+    setCanonical(id);
+    [0,50,150,350].forEach(ms=>setTimeout(()=>{
+      if(canonicalId===id && !onShelf(id)) setCanonical(id);
+    },ms));
+  });
+
+  /* Remove every historical handler from the three toolbar buttons without
+     replacing #tools itself (popup positioning/observers keep the same container). */
+  function freshButton(id){
+    const old=document.getElementById(id);
+    if(!old) return null;
+    const neo=old.cloneNode(true);
+    old.replaceWith(neo);
+    return neo;
+  }
+  const rot=freshButton('rot');
+  const flp=freshButton('flp');
+  const back=freshButton('back');
+
+  function current(){
+    const id=Number(window.__apCanonicalPiece2169 ?? canonicalId ?? window.__apActivePieceId2167);
+    return Number.isFinite(id) && S?.[id] ? id : null;
+  }
+
+  function command(kind){
+    const id=current();
+    if(id==null || paused || onShelf(id)) return;
+    if(!setCanonical(id)) return;
+
+    /* transform() may be wrapped by older popup-restoration layers, but all of
+       them now see the same sel before the transform begins. */
+    try{ transform(kind); }catch(_){ return; }
+
+    canonicalId=id;
+    window.__apCanonicalPiece2169=id;
+    window.__apActivePieceId2167=id;
+    sel=id;
+    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){}
+  }
+
+  function shelfCommand(){
+    const id=current();
+    if(id==null) return;
+    setCanonical(id);
+    try{
+      if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true);
+      else home(id,false);
+    }catch(_){ try{home(id,false);}catch(__){} }
+    canonicalId=null;
+    window.__apCanonicalPiece2169=null;
+    window.__apActivePieceId2167=null;
+    sel=null;
+    try{tools.style.display='none';tools.style.visibility='hidden';}catch(_){}
+  }
+
+  function own(btn,fn){
+    if(!btn) return;
+    btn.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      fn();
+    },true);
+    btn.addEventListener('click',ev=>{
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    },true);
+  }
+  own(rot,()=>command('r'));
+  own(flp,()=>command('f'));
+  own(back,shelfCommand);
+
+  document.title='ANSSIPASI '+VERSION+' · CANONICAL TOOLBAR OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
