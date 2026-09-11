@@ -9886,317 +9886,26 @@ body.apBoardTransition #tools{
 })();
 </script>
 
-
-<!-- ANSSIPASI v2.1.65 ACTIVE PIECE POPUP STABILIZER -->
+<!-- ANSSIPASI v2.1.75 CLEAN SINGLE OWNER -->
+<style>
+/* Only visible piece squares may receive pointer input. Transparent bounding-box
+   areas must never steal a neighbouring piece's touch. */
+.piece{pointer-events:none!important}
+.piece>.block{pointer-events:auto!important}
+#piecePortal2116>.piece{pointer-events:none!important}
+#piecePortal2116>.piece>.block{pointer-events:auto!important}
+.piece.apOwner2175{z-index:2147483646!important}
+#tools{z-index:2147483647!important}
+/* During portrait/auto-pause no lifted portal piece may sit above the blanking layer. */
+@media (orientation:portrait){
+  #piecePortal2116,#tools{display:none!important;visibility:hidden!important}
+}
+</style>
 <script>
 (()=>{
-  const VERSION='v2.1.65';
-  let lastPieceId=null;
-  let holdUntil=0;
-  let raf=0;
-
-  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
-  const onShelf=id=>{
-    const e=pieceEl(id);
-    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
-  };
-  const modalOpen=()=>['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
-    'correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211','boardSessionGate']
-    .some(id=>{
-      const e=document.getElementById(id); if(!e)return false;
-      const c=getComputedStyle(e); return c.display!=='none'&&c.visibility!=='hidden';
-    });
-
-  /* v2.1.68: keep this legacy popup stabilizer synchronized with the one
-     authoritative piece id emitted by the PARTIAL pointer owner. */
-  window.addEventListener('ap-active-piece',ev=>{
-    const id=Number(ev.detail?.id);
-    if(!Number.isFinite(id)) return;
-    lastPieceId=id;
-    holdUntil=performance.now()+1600;
-    if(!onShelf(id)) scheduleRestore(id);
-  });
-
-  function safePosition(id){
-    const e=pieceEl(id), t=window.tools||document.getElementById('tools');
-    if(!e||!t)return;
-    t.style.display='flex';
-    t.style.visibility='visible';
-    t.classList.remove('dragHidden');
-    const r=e.getBoundingClientRect();
-    requestAnimationFrame(()=>{
-      const tr=t.getBoundingClientRect(), gap=8, vw=innerWidth, vh=innerHeight;
-      const c=[
-        [r.left+(r.width-tr.width)/2,r.top-tr.height-gap],
-        [r.left+(r.width-tr.width)/2,r.bottom+gap],
-        [r.right+gap,r.top+(r.height-tr.height)/2],
-        [r.left-tr.width-gap,r.top+(r.height-tr.height)/2]
-      ];
-      let p=c.find(([x,y])=>x>=4&&y>=4&&x+tr.width<=vw-4&&y+tr.height<=vh-4);
-      if(!p)p=[Math.max(4,Math.min(vw-tr.width-4,c[0][0])),Math.max(4,Math.min(vh-tr.height-4,c[0][1]))];
-      t.style.left=p[0]+'px'; t.style.top=p[1]+'px';
-    });
-  }
-
-  function restore(id){
-    if(id==null||modalOpen()||onShelf(id))return;
-    const e=pieceEl(id); if(!e)return;
-    try{
-      sel=id;
-      document.querySelectorAll('.piece.sel').forEach(p=>{if(p!==e)p.classList.remove('sel')});
-      e.classList.add('sel');
-      safePosition(id);
-    }catch(_){}
-  }
-
-  function scheduleRestore(id){
-    if(id==null)return;
-    lastPieceId=id; holdUntil=performance.now()+1600;
-    [0,30,90,180,360,700].forEach(ms=>setTimeout(()=>{
-      if(lastPieceId===id&&!onShelf(id)&&!modalOpen())restore(id);
-    },ms));
-  }
-
-  /* Remember every real piece touch before older code can clear sel/tools. */
-  window.addEventListener('pointerdown',ev=>{
-    const p=ev.target?.closest?.('.piece');
-    if(!p)return;
-    const id=+p.dataset.id; if(!Number.isFinite(id))return;
-    lastPieceId=id; holdUntil=performance.now()+1600;
-    if(!onShelf(id)) scheduleRestore(id);
-  },true);
-
-  window.addEventListener('pointerup',ev=>{
-    const p=ev.target?.closest?.('.piece');
-    const id=p?+p.dataset.id:lastPieceId;
-    if(!Number.isFinite(id))return;
-    if(onShelf(id)){
-      if(lastPieceId===id)lastPieceId=null;
-      return;
-    }
-    scheduleRestore(id);
-  },false);
-
-  /* Legal DROP and transform are the two moments that most often lose popup state.
-     Wrap them once and restore after legacy handlers have finished. */
-  try{
-    const dropBefore2165=drop;
-    drop=function(id){
-      const result=dropBefore2165(id);
-      if(!onShelf(id)) scheduleRestore(id);
-      return result;
-    };
-  }catch(_){}
-
-  try{
-    const transformBefore2165=transform;
-    transform=function(kind){
-      const id=sel!=null?sel:lastPieceId;
-      const result=transformBefore2165(kind);
-      if(id!=null&&!onShelf(id)) scheduleRestore(id);
-      return result;
-    };
-  }catch(_){}
-
-  /* MutationObserver repairs legacy visibility/display/class rewrites immediately. */
-  const t=window.tools||document.getElementById('tools');
-  if(t){
-    new MutationObserver(()=>{
-      if(lastPieceId==null||onShelf(lastPieceId)||modalOpen())return;
-      if(performance.now()<holdUntil || sel===lastPieceId){
-        cancelAnimationFrame(raf);
-        raf=requestAnimationFrame(()=>restore(lastPieceId));
-      }
-    }).observe(t,{attributes:true,attributeFilter:['style','class']});
-  }
-
-  /* During an active non-shelf selection keep the popup alive. This is deliberately
-     lightweight and only reasserts when an older layer has hidden it. */
-  setInterval(()=>{
-    const id=lastPieceId;
-    if(id==null||onShelf(id)||modalOpen())return;
-    const e=pieceEl(id), t=window.tools||document.getElementById('tools');
-    if(!e||!t)return;
-    const cs=getComputedStyle(t);
-    if(sel!==id || !e.classList.contains('sel') || cs.display==='none' || cs.visibility==='hidden') restore(id);
-  },120);
-
-  /* Screen-off / portrait / app-background must never leave a portal ghost over a card. */
-  function clearGhost(){
-    const portal=window.__piecePortal2116||document.getElementById('piecePortal2116');
-    if(portal){
-      [...portal.querySelectorAll('.piece')].forEach(e=>{
-        const id=+e.dataset.id;
-        if(!Number.isFinite(id))return;
-        try{window.normalizeToShelfV208?window.normalizeToShelfV208(id,false):home(id,false)}catch(_){try{home(id,false)}catch(__){}}
-        e.classList.remove('sel');
-      });
-    }
-    lastPieceId=null;
-    try{sel=null;drag=null;pendingPieceDrag=null;t.style.display='none';t.style.visibility='hidden'}catch(_){}
-  }
-  window.addEventListener('orientationchange',clearGhost,true);
-  window.addEventListener('pagehide',clearGhost,true);
-  window.addEventListener('blur',clearGhost,true);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearGhost()},true);
-
-  document.title='ANSSIPASI '+VERSION+' · ACTIVE PIECE POPUP STABILIZER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.66 BLOCK-AWARE PIECE HIT TEST -->
-<script>
-(()=>{
-  const VERSION='v2.1.66';
-  document.title='ANSSIPASI '+VERSION+' · BLOCK-AWARE PIECE HIT TEST';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.67 AUTHORITATIVE ACTIVE PIECE -->
-<script>
-(()=>{
-  const VERSION='v2.1.67';
-  const getId=()=>{
-    const id=Number(window.__apActivePieceId2167);
-    if(Number.isFinite(id) && S?.[id]) return id;
-    if(Number.isFinite(Number(sel)) && S?.[Number(sel)]) return Number(sel);
-    return null;
-  };
-
-  function selectExact(id){
-    if(id==null || !S?.[id]) return false;
-    window.__apActivePieceId2167=id;
-    sel=id;
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
-    if(!e) return false;
-    document.querySelectorAll('.piece.sel').forEach(p=>{ if(p!==e) p.classList.remove('sel'); });
-    e.classList.add('sel');
-    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){}
-    return true;
-  }
-
-  function doTransform(kind){
-    const id=getId();
-    if(id==null || paused) return;
-    if(!selectExact(id)) return;
-    try{transform(kind);}catch(_){}
-    window.__apActivePieceId2167=id;
-    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){}
-  }
-
-  const r=document.getElementById('rot');
-  const f=document.getElementById('flp');
-  const b=document.getElementById('back');
-  if(r){
-    r.onpointerdown=ev=>{ev.preventDefault();ev.stopImmediatePropagation();doTransform('r');};
-    r.onclick=ev=>{ev.preventDefault();ev.stopImmediatePropagation();};
-  }
-  if(f){
-    f.onpointerdown=ev=>{ev.preventDefault();ev.stopImmediatePropagation();doTransform('f');};
-    f.onclick=ev=>{ev.preventDefault();ev.stopImmediatePropagation();};
-  }
-  if(b){
-    b.onpointerdown=ev=>{
-      ev.preventDefault();ev.stopImmediatePropagation();
-      const id=getId(); if(id==null) return;
-      selectExact(id);
-      try{ if(window.normalizeToShelfV208) normalizeToShelfV208(id,true); else home(id,false); }catch(_){ try{home(id,false);}catch(__){} }
-      window.__apActivePieceId2167=null;
-      sel=null;
-      try{tools.style.display='none';tools.style.visibility='hidden';}catch(_){}
-    };
-    b.onclick=ev=>{ev.preventDefault();ev.stopImmediatePropagation();};
-  }
-
-  document.title='ANSSIPASI '+VERSION+' · AUTHORITATIVE ACTIVE PIECE';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.68 PARTIAL SINGLE ACTIVE OWNER -->
-<script>
-(()=>{
-  const VERSION='v2.1.68';
-
-  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
-  const isPartial=()=>document.querySelector('#partialBtn')?.classList.contains('active') ||
-    /PARTIAL/i.test(document.querySelector('#sideScore')?.textContent||'') ||
-    /PARTIAL/i.test(document.body.textContent||'') && !!document.querySelector('#partialBtn');
-
-  function currentId(){
-    const id=Number(window.__apActivePieceId2167);
-    return Number.isFinite(id) && S?.[id] ? id : null;
-  }
-
-  function lockTo(id){
-    if(id==null || !S?.[id]) return false;
-    const e=pieceEl(id); if(!e) return false;
-    window.__apActivePieceId2167=id;
-    sel=id;
-    document.querySelectorAll('.piece.sel').forEach(p=>{if(p!==e)p.classList.remove('sel');});
-    e.classList.add('sel');
-    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){ }
-    return true;
-  }
-
-  /* Capture tool presses BEFORE any historical button listener can read a stale
-     sel/activeId. The visible glow, popup and command therefore share one id. */
-  window.addEventListener('pointerdown',ev=>{
-    if(!isPartial()) return;
-    const btn=ev.target?.closest?.('#rot,#flp,#back');
-    if(!btn) return;
-    const id=currentId();
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    if(id==null || !lockTo(id)) return;
-
-    if(btn.id==='back'){
-      try{
-        if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true);
-        else home(id,false);
-      }catch(_){try{home(id,false);}catch(__){}}
-      window.__apActivePieceId2167=null;
-      sel=null;
-      try{tools.style.display='none';tools.style.visibility='hidden';}catch(_){ }
-      return;
-    }
-
-    try{ transform(btn.id==='rot'?'r':'f'); }catch(_){ }
-    window.__apActivePieceId2167=id;
-    sel=id;
-    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){ }
-  },true);
-
-  /* Suppress the synthetic click following the handled pointerdown so an old
-     onclick cannot perform a second command on a stale piece. */
-  window.addEventListener('click',ev=>{
-    if(!isPartial()) return;
-    if(ev.target?.closest?.('#rot,#flp,#back')){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-    }
-  },true);
-
-  document.title='ANSSIPASI '+VERSION+' · PARTIAL SINGLE ACTIVE OWNER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.69 CANONICAL TOOLBAR OWNER -->
-<script>
-(()=>{
-  const VERSION='v2.1.69';
-  let canonicalId=null;
+  const VERSION='v2.1.75';
+  const tools=document.getElementById('tools');
+  let owner=null;
 
   const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
   const onShelf=id=>{
@@ -10204,759 +9913,110 @@ body.apBoardTransition #tools{
     return !!(e && e.parentElement===shelf && !S?.[id]?.place);
   };
 
-  function setCanonical(id){
-    id=Number(id);
-    if(!Number.isFinite(id) || !S?.[id]) return false;
-    canonicalId=id;
-    window.__apCanonicalPiece2169=id;
-    window.__apActivePieceId2167=id;
-    sel=id;
-    const e=pieceEl(id);
-    if(e && !onShelf(id)){
-      document.querySelectorAll('.piece.sel').forEach(p=>{ if(p!==e) p.classList.remove('sel'); });
-      e.classList.add('sel');
-      try{
-        tools.style.display='flex';
-        tools.style.visibility='visible';
-        tools.classList.remove('dragHidden');
-        requestAnimationFrame(()=>{ try{positionTools();}catch(_){} });
-      }catch(_){}
-    }
-    return true;
-  }
-
-  /* The PARTIAL pointer owner already knows exactly which visible block was touched.
-     Its signal is now the ONLY source of truth for toolbar commands. */
-  window.addEventListener('ap-active-piece',ev=>{
-    const id=Number(ev.detail?.id);
-    if(!Number.isFinite(id)) return;
-    setCanonical(id);
-    [0,50,150,350].forEach(ms=>setTimeout(()=>{
-      if(canonicalId===id && !onShelf(id)) setCanonical(id);
-    },ms));
-  });
-
-  /* Remove every historical handler from the three toolbar buttons without
-     replacing #tools itself (popup positioning/observers keep the same container). */
-  function freshButton(id){
-    const old=document.getElementById(id);
-    if(!old) return null;
-    const neo=old.cloneNode(true);
-    old.replaceWith(neo);
-    return neo;
-  }
-  const rot=freshButton('rot');
-  const flp=freshButton('flp');
-  const back=freshButton('back');
-
-  function current(){
-    const id=Number(window.__apCanonicalPiece2169 ?? canonicalId ?? window.__apActivePieceId2167);
-    return Number.isFinite(id) && S?.[id] ? id : null;
-  }
-
-  function command(kind){
-    const id=current();
-    if(id==null || paused || onShelf(id)) return;
-    if(!setCanonical(id)) return;
-
-    /* transform() may be wrapped by older popup-restoration layers, but all of
-       them now see the same sel before the transform begins. */
-    try{ transform(kind); }catch(_){ return; }
-
-    canonicalId=id;
-    window.__apCanonicalPiece2169=id;
-    window.__apActivePieceId2167=id;
-    sel=id;
-    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){}
-  }
-
-  function shelfCommand(){
-    const id=current();
-    if(id==null) return;
-    setCanonical(id);
-    try{
-      if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true);
-      else home(id,false);
-    }catch(_){ try{home(id,false);}catch(__){} }
-    canonicalId=null;
-    window.__apCanonicalPiece2169=null;
-    window.__apActivePieceId2167=null;
-    sel=null;
-    try{tools.style.display='none';tools.style.visibility='hidden';}catch(_){}
-  }
-
-  function own(btn,fn){
-    if(!btn) return;
-    btn.addEventListener('pointerdown',ev=>{
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      fn();
-    },true);
-    btn.addEventListener('click',ev=>{
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-    },true);
-  }
-  own(rot,()=>command('r'));
-  own(flp,()=>command('f'));
-  own(back,shelfCommand);
-
-  document.title='ANSSIPASI '+VERSION+' · CANONICAL TOOLBAR OWNER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.70 DIRECT PIECE OWNER + PARTIAL NEXT GUARD -->
-<script>
-(()=>{
-  const VERSION='v2.1.70';
-  let activeId=null;
-  let restoreToken=0;
-
-  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
-  const onShelf=id=>{
-    const e=pieceEl(id);
-    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
-  };
-  const modalOpen=()=>['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
-    'correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211','boardSessionGate']
-    .some(id=>{
-      const e=document.getElementById(id); if(!e)return false;
-      const c=getComputedStyle(e); return c.display!=='none'&&c.visibility!=='hidden';
-    });
-
-  function positionFor(id){
-    const e=pieceEl(id), t=document.getElementById('tools');
-    if(!e||!t||onShelf(id)) return;
-    const r=e.getBoundingClientRect();
-    t.style.display='flex';
-    t.style.visibility='visible';
-    t.classList.remove('dragHidden');
-    requestAnimationFrame(()=>{
-      const tr=t.getBoundingClientRect(), gap=8, vw=innerWidth, vh=innerHeight;
-      const opts=[
-        [r.left+(r.width-tr.width)/2,r.top-tr.height-gap],
-        [r.left+(r.width-tr.width)/2,r.bottom+gap],
-        [r.right+gap,r.top+(r.height-tr.height)/2],
-        [r.left-tr.width-gap,r.top+(r.height-tr.height)/2]
-      ];
-      let pos=opts.find(([x,y])=>x>=4&&y>=4&&x+tr.width<=vw-4&&y+tr.height<=vh-4);
-      if(!pos) pos=[Math.max(4,Math.min(vw-tr.width-4,opts[0][0])),Math.max(4,Math.min(vh-tr.height-4,opts[0][1]))];
-      t.style.left=pos[0]+'px';
-      t.style.top=pos[1]+'px';
-    });
-  }
-
-  function activate(id){
+  function setOwner(id){
     id=Number(id);
     if(!Number.isFinite(id)||!S?.[id]||onShelf(id)) return false;
-    activeId=id;
-    window.__apDirectActive2170=id;
-    window.__apCanonicalPiece2169=id;
-    window.__apActivePieceId2167=id;
-    sel=id;
+    owner=id;
+    window.__apOwner2175=id;
+    try{ sel=id; }catch(_){ }
+    document.querySelectorAll('.piece.apOwner2175').forEach(p=>p.classList.remove('apOwner2175'));
     const e=pieceEl(id);
-    document.querySelectorAll('.piece.sel').forEach(p=>{ if(p!==e)p.classList.remove('sel'); });
-    if(e)e.classList.add('sel');
-    positionFor(id);
+    if(e) e.classList.add('apOwner2175');
+    /* v2.1.64 owns the visual popup. Feed it one authoritative ID only. */
+    try{ window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}})); }catch(_){ }
     return true;
   }
 
-  function keepActive(id){
-    const token=++restoreToken;
-    [0,40,100,220,450,800].forEach(ms=>setTimeout(()=>{
-      if(token!==restoreToken || activeId!==id || onShelf(id) || modalOpen()) return;
-      activate(id);
-    },ms));
+  function idFromRealSquare(ev){
+    const block=ev.target?.closest?.('.block');
+    const p=block?.closest?.('.piece');
+    const id=Number(p?.dataset.id);
+    return Number.isFinite(id)&&S?.[id]&&!onShelf(id)?id:null;
   }
 
-  function clearActive(id=null){
-    if(id!=null && activeId!==id) return;
-    activeId=null;
-    window.__apDirectActive2170=null;
-    window.__apCanonicalPiece2169=null;
-    window.__apActivePieceId2167=null;
-    sel=null;
-    document.querySelectorAll('.piece.sel').forEach(p=>p.classList.remove('sel'));
-    const t=document.getElementById('tools');
-    if(t){t.style.display='none';t.style.visibility='hidden';}
-  }
-
-  /* Every touch on a placed/floating piece becomes authoritative immediately.
-     This bypasses historical activeId/sel races completely. */
-  window.addEventListener('pointerdown',ev=>{
-    const p=ev.target?.closest?.('.piece');
-    if(!p) return;
-    const id=Number(p.dataset.id);
-    if(!Number.isFinite(id)||onShelf(id)) return;
-    activate(id);
-    keepActive(id);
+  /* One touch = one owner. No delayed owner writers, no polling, no coordinate
+     search from the popup position. */
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#tools')) return;
+    const id=idFromRealSquare(ev);
+    if(id!=null) setOwner(id);
   },true);
 
-  window.addEventListener('pointerup',ev=>{
-    const p=ev.target?.closest?.('.piece');
-    const id=p?Number(p.dataset.id):activeId;
-    if(!Number.isFinite(id)||onShelf(id)) return;
-    activeId=id;
-    keepActive(id);
+  document.addEventListener('pointerup',ev=>{
+    if(ev.target?.closest?.('#tools')) return;
+    const id=idFromRealSquare(ev);
+    if(id!=null) setOwner(id);
   },true);
 
-  /* Explicit-id transform. Do not call the historical transform() chain at all. */
-  function directTransform(kind){
-    const id=Number(activeId);
-    if(!Number.isFinite(id)||!S?.[id]||paused||onShelf(id)) return;
-    const e0=pieceEl(id); if(!e0)return;
-    const r=e0.getBoundingClientRect();
-    if(S[id].place) try{clear(id);}catch(_){}
-    const portal=window.__piecePortal2116||document.body;
-    portal.append(e0);
-    Object.assign(e0.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
-    const c=S[id].c;
-    S[id].c = kind==='r'
-      ? norm(c.map(q=>[-q[1],q[0]]))
-      : norm(c.map(q=>[-q[0],q[1]]));
-    try{render(id);}catch(_){return;}
-    const e=pieceEl(id); if(!e)return;
-    portal.append(e);
-    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
-    activate(id);
-    keepActive(id);
-    try{moves += kind==='r'?.25:.5; const m=document.getElementById('moves'); if(m)m.textContent=moves;}catch(_){}
-    try{buzz(kind==='r'?12:[10,25,10]);}catch(_){}
-    try{info.innerHTML=kind==='r'?'<b>↻ ROTATE</b><br>Piece is lifted. Temporary overlap is allowed until DROP.':'<b>⇋ FLIP</b><br>Piece is lifted. Temporary overlap is allowed until DROP.';}catch(_){}
+  function currentOwner(){
+    const id=Number(owner ?? window.__apOwner2175);
+    return Number.isFinite(id)&&S?.[id]&&!onShelf(id)?id:null;
   }
 
-  function directShelf(){
-    const id=Number(activeId);
-    if(!Number.isFinite(id)||!S?.[id]) return;
+  function runTransform(kind){
+    const id=currentOwner();
+    if(id==null||paused) return;
     try{
-      if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true);
-      else home(id,false);
-    }catch(_){ try{home(id,false);}catch(__){} }
-    try{moves+=.5; const m=document.getElementById('moves'); if(m)m.textContent=moves;}catch(_){}
-    clearActive(id);
+      sel=id;
+      transform(kind);
+      owner=id;
+      window.__apOwner2175=id;
+      const e=pieceEl(id); if(e)e.classList.add('apOwner2175');
+      window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));
+      moves += kind==='r' ? .25 : .5;
+      const m=document.getElementById('moves'); if(m)m.textContent=moves;
+      buzz(kind==='r'?12:[10,25,10]);
+    }catch(_){ }
   }
 
-  /* Replace toolbar controls one final time so no historical listener survives. */
+  function runShelf(){
+    const id=currentOwner();
+    if(id==null) return;
+    try{
+      sel=id;
+      home(id,false);
+      moves+=.5;
+      const m=document.getElementById('moves'); if(m)m.textContent=moves;
+    }catch(_){ }
+    owner=null; window.__apOwner2175=null;
+    document.querySelectorAll('.piece.apOwner2175').forEach(p=>p.classList.remove('apOwner2175'));
+    try{tools.style.display='none';tools.style.visibility='hidden';}catch(_){ }
+  }
+
   function replaceTool(id,fn){
     const old=document.getElementById(id); if(!old)return;
     const b=old.cloneNode(true); old.replaceWith(b);
     b.addEventListener('pointerdown',ev=>{
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); fn();
+      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
+      fn();
     },true);
     b.addEventListener('click',ev=>{
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
     },true);
   }
-  replaceTool('rot',()=>directTransform('r'));
-  replaceTool('flp',()=>directTransform('f'));
-  replaceTool('back',directShelf);
+  replaceTool('rot',()=>runTransform('r'));
+  replaceTool('flp',()=>runTransform('f'));
+  replaceTool('back',runShelf);
 
-  /* PARTIAL NEXT TASK must use the confirmation card once play has begun. */
+  /* Keep the already requested NEXT TASK confirmation behavior without adding
+     another active-piece state machine. */
   const nt=document.getElementById('nextTop');
   if(nt){
     const fresh=nt.cloneNode(true); nt.replaceWith(fresh);
     fresh.addEventListener('click',ev=>{
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
-      const progressed = (typeof moves!=='undefined'&&moves>0) || (typeof score!=='undefined'&&score>0) ||
+      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
+      const progressed=(typeof moves!=='undefined'&&moves>0)||(typeof score!=='undefined'&&score>0)||
         (Array.isArray(ids)&&ids.some(id=>S?.[id]?.place));
-      if(typeof solved!=='undefined' && solved){ resetRun(true); return; }
+      if(typeof solved!=='undefined'&&solved){ resetRun(true); return; }
       if(progressed){
         const modal=document.getElementById('nextConfirm');
-        if(modal){modal.style.display='flex'; return;}
+        if(modal){modal.style.display='flex';return;}
       }
       resetRun(true);
     },true);
   }
 
-  document.title='ANSSIPASI '+VERSION+' · DIRECT PIECE OWNER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-<!-- ANSSIPASI v2.1.71 SINGLE VISUAL OWNER + HITMAP + SAFE DROP -->
-<style id="ap2171Style">
-/* Only visible squares receive touches. Transparent holes in polyomino bounding boxes
-   must never steal a neighbour's tap. */
-.piece{pointer-events:none!important}
-.piece .block{pointer-events:auto!important}
-#piecePortal2116>.piece,#piecePortal2116>.piece.sel{pointer-events:none!important}
-#piecePortal2116>.piece .block,#piecePortal2116>.piece.sel .block{pointer-events:auto!important}
-/* Popup is always the top UI layer. The active piece is above every other piece,
-   but still below its own popup. */
-#tools{z-index:2147483647!important;pointer-events:auto!important}
-.piece.apActive2171{z-index:2147483646!important}
-</style>
-<script>
-(()=>{
-  const VERSION='v2.1.71';
-  let activeId=null;
-  let pieceGuardUntil=0;
-  let syncing=false;
-
-  const toolsEl=()=>document.getElementById('tools');
-  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
-  const visiblePieceFromEvent=ev=>{
-    const block=ev.target?.closest?.('.block');
-    const p=block?.closest?.('.piece');
-    if(!p) return null;
-    const id=Number(p.dataset.id);
-    return Number.isFinite(id)?{id,p}:null;
-  };
-  const onShelf=id=>{
-    const e=pieceEl(id);
-    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
-  };
-  const modalOpen=()=>['taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait',
-    'correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211','boardSessionGate']
-    .some(id=>{
-      const e=document.getElementById(id); if(!e)return false;
-      const c=getComputedStyle(e); return c.display!=='none'&&c.visibility!=='hidden';
-    });
-
-  function setCanonical(id){
-    activeId=id;
-    window.__apDirectActive2170=id;
-    window.__apCanonicalPiece2169=id;
-    window.__apActivePieceId2167=id;
-    window.__apActivePiece2171=id;
-    sel=id;
-  }
-
-  function clearVisualOnly(){
-    document.querySelectorAll('.piece').forEach(p=>{
-      p.classList.remove('sel','apActive2171');
-      if(p.parentElement===board && p.style.zIndex==='2147483646') p.style.zIndex='5';
-    });
-  }
-
-  function placeToolsNow(id){
-    const e=pieceEl(id), t=toolsEl();
-    if(!e||!t||onShelf(id)||modalOpen()) return;
-    const r=e.getBoundingClientRect();
-    t.style.display='flex';
-    t.style.visibility='visible';
-    t.classList.remove('dragHidden');
-    t.style.zIndex='2147483647';
-    /* Force layout immediately, then choose the first fully visible position. */
-    const tr=t.getBoundingClientRect(), gap=8, vw=innerWidth, vh=innerHeight;
-    const opts=[
-      [r.left+(r.width-tr.width)/2,r.top-tr.height-gap],
-      [r.left+(r.width-tr.width)/2,r.bottom+gap],
-      [r.right+gap,r.top+(r.height-tr.height)/2],
-      [r.left-tr.width-gap,r.top+(r.height-tr.height)/2]
-    ];
-    let pos=opts.find(([x,y])=>x>=4&&y>=4&&x+tr.width<=vw-4&&y+tr.height<=vh-4);
-    if(!pos) pos=[Math.max(4,Math.min(vw-tr.width-4,opts[0][0])),Math.max(4,Math.min(vh-tr.height-4,opts[0][1]))];
-    t.style.left=pos[0]+'px';
-    t.style.top=pos[1]+'px';
-  }
-
-  function enforce(id=activeId){
-    id=Number(id);
-    if(syncing||!Number.isFinite(id)||!S?.[id]||onShelf(id)||modalOpen()) return false;
-    const e=pieceEl(id); if(!e)return false;
-    syncing=true;
-    try{
-      setCanonical(id);
-      document.querySelectorAll('.piece').forEach(p=>{
-        const same=Number(p.dataset.id)===id;
-        p.classList.toggle('sel',same);
-        p.classList.toggle('apActive2171',same);
-        if(!same && p.parentElement===board && p.style.zIndex==='2147483646') p.style.zIndex='5';
-      });
-      e.style.zIndex='2147483646';
-      placeToolsNow(id);
-    } finally { syncing=false; }
-    return true;
-  }
-
-  function deactivate(){
-    activeId=null;
-    window.__apDirectActive2170=null;
-    window.__apCanonicalPiece2169=null;
-    window.__apActivePieceId2167=null;
-    window.__apActivePiece2171=null;
-    sel=null;
-    clearVisualOnly();
-    const t=toolsEl();
-    if(t){t.style.display='none';t.style.visibility='hidden';}
-  }
-
-  /* A visible square becomes the single owner immediately. */
-  window.addEventListener('pointerdown',ev=>{
-    const hit=visiblePieceFromEvent(ev);
-    if(!hit) return;
-    if(onShelf(hit.id)) return;
-    pieceGuardUntil=performance.now()+900;
-    enforce(hit.id);
-    /* Reassert after legacy async handlers have had their turn. */
-    [0,25,70,150,320].forEach(ms=>setTimeout(()=>{
-      if(activeId===hit.id && !onShelf(hit.id)) enforce(hit.id);
-    },ms));
-  },true);
-
-  window.addEventListener('pointerup',ev=>{
-    const hit=visiblePieceFromEvent(ev);
-    const id=hit?.id ?? activeId;
-    if(!Number.isFinite(Number(id))) return;
-    if(onShelf(Number(id))){ if(activeId===Number(id)) deactivate(); return; }
-    setTimeout(()=>{ if(activeId===Number(id)) enforce(Number(id)); },0);
-    setTimeout(()=>{ if(activeId===Number(id)) enforce(Number(id)); },90);
-    setTimeout(()=>{ if(activeId===Number(id)) enforce(Number(id)); },240);
-  },true);
-
-  /* Old delayed popup/selection writers are neutralised by a tiny owner heartbeat.
-     It only runs while a placed/floating piece is active. */
-  setInterval(()=>{
-    if(activeId==null||modalOpen()||onShelf(activeId)) return;
-    const e=pieceEl(activeId), t=toolsEl();
-    if(!e)return;
-    const wrongSel=document.querySelector('.piece.sel:not(.apActive2171)');
-    if(wrongSel || !e.classList.contains('sel') || !e.classList.contains('apActive2171') ||
-       !t || t.style.display==='none' || t.style.visibility==='hidden' || t.classList.contains('dragHidden')){
-      enforce(activeId);
-    }
-  },70);
-
-  /* Keep popup attached immediately after rotation/flip or DOM replacement. */
-  const mo=new MutationObserver(()=>{
-    if(syncing||activeId==null||modalOpen()||onShelf(activeId)) return;
-    queueMicrotask(()=>{ if(activeId!=null) enforce(activeId); });
-  });
-  mo.observe(document.body,{subtree:true,childList:true});
-
-  /* A synthetic click created by double/triple tapping a piece over the board selector
-     must never start a new task/board. */
-  document.addEventListener('click',ev=>{
-    if(performance.now()>pieceGuardUntil) return;
-    if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#modeChooser,#boardSessionGate')){
-      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
-    }
-  },true);
-
-  /* Do not allow a released piece to live on the SCORE panel. If a floating piece is
-     dropped there, return it cleanly to SHELF. Board and banner remain valid zones. */
-  window.addEventListener('pointerup',()=>{
-    setTimeout(()=>{
-      document.querySelectorAll('.piece').forEach(p=>{
-        const id=Number(p.dataset.id); if(!Number.isFinite(id)||onShelf(id))return;
-        const r=p.getBoundingClientRect();
-        const score=document.getElementById('sideScore')?.getBoundingClientRect();
-        if(!score)return;
-        const cx=r.left+r.width/2, cy=r.top+r.height/2;
-        if(cx>=score.left&&cx<=score.right&&cy>=score.top&&cy<=score.bottom){
-          try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
-          catch(_){try{home(id,false);}catch(__){}}
-          if(activeId===id) deactivate();
-        }
-      });
-    },40);
-  },true);
-
-  /* Toolbar should always command the canonical owner, even if an older closure
-     has stale state. Clone once more and bind directly to the single owner. */
-  function rotateOrFlip(kind){
-    const id=Number(activeId);
-    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)||paused) return;
-    const e0=pieceEl(id); if(!e0)return;
-    const r=e0.getBoundingClientRect();
-    if(S[id].place) try{clear(id);}catch(_){ }
-    const portal=window.__piecePortal2116||document.body;
-    portal.append(e0);
-    Object.assign(e0.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
-    const c=S[id].c;
-    S[id].c = kind==='r' ? norm(c.map(q=>[-q[1],q[0]])) : norm(c.map(q=>[-q[0],q[1]]));
-    try{render(id);}catch(_){return;}
-    const e=pieceEl(id); if(!e)return;
-    portal.append(e);
-    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
-    enforce(id);
-  }
-  function toShelf(){
-    const id=Number(activeId); if(!Number.isFinite(id)||!S?.[id])return;
-    try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
-    catch(_){try{home(id,false);}catch(__){}}
-    deactivate();
-  }
-  function rebind(id,fn){
-    const old=document.getElementById(id); if(!old)return;
-    const b=old.cloneNode(true); old.replaceWith(b);
-    b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();fn();},true);
-    b.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();},true);
-  }
-  rebind('rot',()=>rotateOrFlip('r'));
-  rebind('flp',()=>rotateOrFlip('f'));
-  rebind('back',toShelf);
-
-  document.title='ANSSIPASI '+VERSION+' · SINGLE VISUAL OWNER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-<!-- ANSSIPASI v2.1.72 POPUP-BOUND OWNER -->
-<script>
-(()=>{
-  const VERSION='v2.1.72';
-  const tools=document.getElementById('tools');
-  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
-  const onShelf=id=>{
-    const e=pieceEl(id);
-    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
-  };
-
-  /* The popup itself now remembers exactly which piece owns it. This removes the
-     last ambiguity between visible glow, legacy selection variables and toolbar actions. */
-  function bindOwner(id){
-    id=Number(id);
-    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)) return false;
-    if(tools) tools.dataset.ownerId=String(id);
-    window.__apPopupOwner2172=id;
-    window.__apDirectActive2170=id;
-    window.__apCanonicalPiece2169=id;
-    window.__apActivePieceId2167=id;
-    window.__apActivePiece2171=id;
-    try{ sel=id; }catch(_){ }
-    document.querySelectorAll('.piece').forEach(p=>{
-      const same=Number(p.dataset.id)===id;
-      p.classList.toggle('sel',same);
-      p.classList.toggle('apActive2171',same);
-      p.classList.toggle('apOwner2172',same);
-      if(!same && p.style.zIndex==='2147483646') p.style.zIndex='5';
-    });
-    const e=pieceEl(id);
-    if(e) e.style.zIndex='2147483646';
-    return true;
-  }
-
-  function ownerFromPopup(){
-    let id=Number(tools?.dataset.ownerId);
-    if(Number.isFinite(id)&&S?.[id]&&!onShelf(id)) return id;
-    const p=document.querySelector('.piece.apOwner2172,.piece.apActive2171,.piece.sel');
-    id=Number(p?.dataset.id);
-    return Number.isFinite(id)&&S?.[id]&&!onShelf(id)?id:null;
-  }
-
-  function exactBlockHit(ev){
-    const x=ev.clientX,y=ev.clientY;
-    const blocks=[...document.querySelectorAll('.piece .block')].filter(b=>{
-      const r=b.getBoundingClientRect();
-      return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
-    });
-    if(!blocks.length) return null;
-    /* Pick the visually uppermost real square, never a transparent bounding-box area. */
-    blocks.sort((a,b)=>{
-      const pa=a.closest('.piece'), pb=b.closest('.piece');
-      const za=Number(getComputedStyle(pa).zIndex)||0, zb=Number(getComputedStyle(pb).zIndex)||0;
-      if(za!==zb) return zb-za;
-      const all=[...document.querySelectorAll('.piece')];
-      return all.indexOf(pb)-all.indexOf(pa);
-    });
-    const p=blocks[0].closest('.piece');
-    const id=Number(p?.dataset.id);
-    return Number.isFinite(id)?id:null;
-  }
-
-  function keepOwner(id){
-    if(!bindOwner(id)) return;
-    const e=pieceEl(id); if(!e||!tools) return;
-    tools.style.display='flex';
-    tools.style.visibility='visible';
-    tools.classList.remove('dragHidden');
-    tools.style.zIndex='2147483647';
-    e.style.zIndex='2147483646';
-  }
-
-  window.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#tools')) return;
-    const id=exactBlockHit(ev);
-    if(id==null||onShelf(id)) return;
-    bindOwner(id);
-    [0,35,100,220].forEach(ms=>setTimeout(()=>{
-      if(Number(tools?.dataset.ownerId)===id) keepOwner(id);
-    },ms));
-  },true);
-
-  window.addEventListener('pointerup',ev=>{
-    if(ev.target?.closest?.('#tools')) return;
-    const id=exactBlockHit(ev) ?? ownerFromPopup();
-    if(id==null||onShelf(id)) return;
-    bindOwner(id);
-    [0,60,160].forEach(ms=>setTimeout(()=>{
-      if(Number(tools?.dataset.ownerId)===id) keepOwner(id);
-    },ms));
-  },true);
-
-  function directTransform(id,kind){
-    id=Number(id);
-    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)||paused) return;
-    const e0=pieceEl(id); if(!e0)return;
-    const r=e0.getBoundingClientRect();
-    if(S[id].place) try{clear(id);}catch(_){ }
-    const portal=window.__piecePortal2116||document.body;
-    portal.append(e0);
-    Object.assign(e0.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
-    const c=S[id].c;
-    S[id].c = kind==='r' ? norm(c.map(q=>[-q[1],q[0]])) : norm(c.map(q=>[-q[0],q[1]]));
-    try{render(id);}catch(_){return;}
-    const e=pieceEl(id); if(!e)return;
-    portal.append(e);
-    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
-    bindOwner(id);
-    keepOwner(id);
-  }
-
-  function directShelf(id){
-    id=Number(id);
-    if(!Number.isFinite(id)||!S?.[id])return;
-    try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
-    catch(_){try{home(id,false);}catch(__){}}
-    if(tools){ tools.dataset.ownerId=''; tools.style.display='none'; tools.style.visibility='hidden'; }
-    window.__apPopupOwner2172=null;
-    document.querySelectorAll('.piece').forEach(p=>p.classList.remove('sel','apActive2171','apOwner2172'));
-  }
-
-  function rebind(id,fn){
-    const old=document.getElementById(id); if(!old)return;
-    const b=old.cloneNode(true); old.replaceWith(b);
-    b.addEventListener('pointerdown',ev=>{
-      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
-      const owner=ownerFromPopup();
-      if(owner!=null) fn(owner);
-    },true);
-    b.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();},true);
-  }
-  rebind('rot',id=>directTransform(id,'r'));
-  rebind('flp',id=>directTransform(id,'f'));
-  rebind('back',directShelf);
-
-  /* If any legacy code paints a different .sel, restore the popup-bound owner. */
-  setInterval(()=>{
-    const id=ownerFromPopup();
-    if(id==null)return;
-    const p=pieceEl(id);
-    if(!p)return;
-    if(!p.classList.contains('sel')||!p.classList.contains('apOwner2172')||
-       tools?.style.display==='none'||tools?.style.visibility==='hidden') keepOwner(id);
-  },55);
-
-  document.title='ANSSIPASI '+VERSION+' · POPUP-BOUND OWNER';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-
-<!-- ANSSIPASI v2.1.74 STABLE TOOLBAR OWNER -->
-<script>
-(()=>{
-  const VERSION='v2.1.74';
-  const tools=document.getElementById('tools');
-  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
-  const onShelf=id=>{
-    const e=pieceEl(id);
-    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
-  };
-
-  /* v2.1.74: keep the last REAL square touched as the command owner.
-     Do not repaint/reselect pieces here. This avoids the v2.1.73 fight where
-     several delayed selection writers made neighbouring pieces flicker. */
-  window.__apStableToolbarOwner2174=null;
-
-  function realTargetId(ev){
-    const block=ev.target?.closest?.('.piece .block');
-    const p=block?.closest?.('.piece');
-    const id=Number(p?.dataset.id);
-    return Number.isFinite(id)&&S?.[id]&&!onShelf(id) ? id : null;
-  }
-
-  /* Registered on document capture: legacy window handlers may run first, but this
-     simply records the piece the finger actually touched. No visual writes, no timers. */
-  document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#tools')) return;
-    const id=realTargetId(ev);
-    if(id==null) return;
-    window.__apStableToolbarOwner2174=id;
-    if(tools) tools.dataset.ownerId=String(id);
-  },true);
-
-  document.addEventListener('pointerup',ev=>{
-    if(ev.target?.closest?.('#tools')) return;
-    const id=realTargetId(ev);
-    if(id==null) return;
-    window.__apStableToolbarOwner2174=id;
-    if(tools) tools.dataset.ownerId=String(id);
-  },true);
-
-  function stableOwner(){
-    let id=Number(window.__apStableToolbarOwner2174);
-    if(Number.isFinite(id)&&S?.[id]&&!onShelf(id)) return id;
-    id=Number(tools?.dataset.ownerId);
-    return Number.isFinite(id)&&S?.[id]&&!onShelf(id)?id:null;
-  }
-
-  function directTransform(id,kind){
-    id=Number(id);
-    if(!Number.isFinite(id)||!S?.[id]||onShelf(id)||paused) return;
-    const e0=pieceEl(id); if(!e0)return;
-    const r=e0.getBoundingClientRect();
-    if(S[id].place) try{clear(id);}catch(_){ }
-    const portal=window.__piecePortal2116||document.body;
-    portal.append(e0);
-    Object.assign(e0.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
-    const c=S[id].c;
-    S[id].c = kind==='r' ? norm(c.map(q=>[-q[1],q[0]])) : norm(c.map(q=>[-q[0],q[1]]));
-    try{render(id);}catch(_){return;}
-    const e=pieceEl(id); if(!e)return;
-    portal.append(e);
-    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:'2147483646'});
-    window.__apStableToolbarOwner2174=id;
-    if(tools) tools.dataset.ownerId=String(id);
-    /* Let the already working v2.1.72 visual owner paint glow/popup. */
-    try{
-      window.__apPopupOwner2172=id;
-      window.__apDirectActive2170=id;
-      window.__apCanonicalPiece2169=id;
-      window.__apActivePieceId2167=id;
-      window.__apActivePiece2171=id;
-      sel=id;
-    }catch(_){ }
-  }
-
-  function directShelf(id){
-    id=Number(id);
-    if(!Number.isFinite(id)||!S?.[id])return;
-    try{ if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true); else home(id,false); }
-    catch(_){try{home(id,false);}catch(__){}}
-    window.__apStableToolbarOwner2174=null;
-    if(tools){tools.dataset.ownerId='';tools.style.display='none';tools.style.visibility='hidden';}
-  }
-
-  function hardRebind(id,kind){
-    const old=document.getElementById(id); if(!old)return;
-    const b=old.cloneNode(true); old.replaceWith(b);
-    const run=ev=>{
-      /* The owner was captured from the real piece before touching the toolbar.
-         Legacy capture handlers are therefore irrelevant to command targeting. */
-      const id=stableOwner();
-      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
-      if(id==null)return;
-      if(kind==='s') directShelf(id); else directTransform(id,kind);
-    };
-    b.addEventListener('pointerdown',run,true);
-    b.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();},true);
-  }
-
-  hardRebind('rot','r');
-  hardRebind('flp','f');
-  hardRebind('back','s');
-
-  document.title='ANSSIPASI '+VERSION+' · STABLE TOOLBAR OWNER';
+  document.title='ANSSIPASI '+VERSION+' · CLEAN SINGLE OWNER';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
