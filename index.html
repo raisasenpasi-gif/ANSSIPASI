@@ -9907,6 +9907,16 @@ body.apBoardTransition #tools{
       const c=getComputedStyle(e); return c.display!=='none'&&c.visibility!=='hidden';
     });
 
+  /* v2.1.68: keep this legacy popup stabilizer synchronized with the one
+     authoritative piece id emitted by the PARTIAL pointer owner. */
+  window.addEventListener('ap-active-piece',ev=>{
+    const id=Number(ev.detail?.id);
+    if(!Number.isFinite(id)) return;
+    lastPieceId=id;
+    holdUntil=performance.now()+1600;
+    if(!onShelf(id)) scheduleRestore(id);
+  });
+
   function safePosition(id){
     const e=pieceEl(id), t=window.tools||document.getElementById('tools');
     if(!e||!t)return;
@@ -10105,6 +10115,77 @@ body.apBoardTransition #tools{
   }
 
   document.title='ANSSIPASI '+VERSION+' · AUTHORITATIVE ACTIVE PIECE';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
+
+
+<!-- ANSSIPASI v2.1.68 PARTIAL SINGLE ACTIVE OWNER -->
+<script>
+(()=>{
+  const VERSION='v2.1.68';
+
+  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const isPartial=()=>document.querySelector('#partialBtn')?.classList.contains('active') ||
+    /PARTIAL/i.test(document.querySelector('#sideScore')?.textContent||'') ||
+    /PARTIAL/i.test(document.body.textContent||'') && !!document.querySelector('#partialBtn');
+
+  function currentId(){
+    const id=Number(window.__apActivePieceId2167);
+    return Number.isFinite(id) && S?.[id] ? id : null;
+  }
+
+  function lockTo(id){
+    if(id==null || !S?.[id]) return false;
+    const e=pieceEl(id); if(!e) return false;
+    window.__apActivePieceId2167=id;
+    sel=id;
+    document.querySelectorAll('.piece.sel').forEach(p=>{if(p!==e)p.classList.remove('sel');});
+    e.classList.add('sel');
+    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){ }
+    return true;
+  }
+
+  /* Capture tool presses BEFORE any historical button listener can read a stale
+     sel/activeId. The visible glow, popup and command therefore share one id. */
+  window.addEventListener('pointerdown',ev=>{
+    if(!isPartial()) return;
+    const btn=ev.target?.closest?.('#rot,#flp,#back');
+    if(!btn) return;
+    const id=currentId();
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    if(id==null || !lockTo(id)) return;
+
+    if(btn.id==='back'){
+      try{
+        if(window.normalizeToShelfV208) window.normalizeToShelfV208(id,true);
+        else home(id,false);
+      }catch(_){try{home(id,false);}catch(__){}}
+      window.__apActivePieceId2167=null;
+      sel=null;
+      try{tools.style.display='none';tools.style.visibility='hidden';}catch(_){ }
+      return;
+    }
+
+    try{ transform(btn.id==='rot'?'r':'f'); }catch(_){ }
+    window.__apActivePieceId2167=id;
+    sel=id;
+    try{window.dispatchEvent(new CustomEvent('ap-active-piece',{detail:{id}}));}catch(_){ }
+  },true);
+
+  /* Suppress the synthetic click following the handled pointerdown so an old
+     onclick cannot perform a second command on a stale piece. */
+  window.addEventListener('click',ev=>{
+    if(!isPartial()) return;
+    if(ev.target?.closest?.('#rot,#flp,#back')){
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
+  },true);
+
+  document.title='ANSSIPASI '+VERSION+' · PARTIAL SINGLE ACTIVE OWNER';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
