@@ -10107,3 +10107,137 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.77 ISOLATED POPUP + ORIENTATION PRESERVE -->
+<style>
+/* Retire the legacy toolbar completely. Its pointer event was still leaking
+   through to old capture handlers and selecting the neighbouring piece. */
+#tools{display:none!important;visibility:hidden!important;pointer-events:none!important}
+#apTools2177{
+  position:fixed;display:none;z-index:2147483647;border:0;background:transparent;
+  width:224px;height:46px;overflow:visible;pointer-events:auto;
+}
+@media (orientation:portrait){#apTools2177{display:none!important}}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.77';
+  let owner=null;
+
+  /* The popup lives in its own iframe. Pointer events inside an iframe never
+     enter the game's old window/document capture listeners, so pressing
+     ROTATE/FLIP/SHELF cannot activate the piece lying behind the popup. */
+  const pop=document.createElement('iframe');
+  pop.id='apTools2177';
+  pop.setAttribute('aria-label','Piece tools');
+  pop.srcdoc=`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;background:transparent;overflow:hidden;font-family:Arial,sans-serif}
+    .bar{height:44px;display:flex;gap:5px;align-items:center;padding:5px;background:white;border:1px solid #eab8ca;border-radius:10px;box-shadow:0 6px 18px #56324444}
+    button{height:34px;border:0;border-radius:8px;padding:0 8px;background:#f6ccdc;color:#5c3b49;font-size:10px;font-weight:900;white-space:nowrap;touch-action:manipulation}
+    button:active{transform:scale(.96)}
+  </style>
+  <div class="bar"><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>
+  <script>
+    document.addEventListener('pointerdown',e=>{
+      const b=e.target.closest('button'); if(!b)return;
+      e.preventDefault(); e.stopPropagation();
+      parent.postMessage({type:'ap2177tool',action:b.dataset.a},'*');
+    },true);
+  <\/script>`;
+  document.body.appendChild(pop);
+
+  const pieceEl=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const isShelf=id=>{
+    const e=pieceEl(id);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  };
+  function realPieceId(ev){
+    const block=ev.target?.closest?.('.piece .block');
+    const e=block?.closest?.('.piece');
+    const id=Number(e?.dataset.id);
+    return Number.isFinite(id)&&S?.[id]&&!isShelf(id)?id:null;
+  }
+  function markOwner(id){
+    id=Number(id);
+    if(!Number.isFinite(id)||!S?.[id]||isShelf(id))return;
+    owner=id;
+    try{sel=id;}catch(_){ }
+  }
+  function popupPosition(){
+    if(owner==null||paused||innerHeight>innerWidth){pop.style.display='none';return;}
+    const e=pieceEl(owner); if(!e){pop.style.display='none';return;}
+    const r=e.getBoundingClientRect();
+    const w=224,h=46,g=7,vw=innerWidth,vh=innerHeight;
+    const c=[
+      {x:r.left+(r.width-w)/2,y:r.top-h-g},
+      {x:r.left+(r.width-w)/2,y:r.bottom+g},
+      {x:r.right+g,y:r.top+(r.height-h)/2},
+      {x:r.left-w-g,y:r.top+(r.height-h)/2}
+    ];
+    let q=c.find(q=>q.x>=4&&q.y>=4&&q.x+w<=vw-4&&q.y+h<=vh-4);
+    if(!q)q={x:Math.max(4,Math.min(vw-w-4,c[0].x)),y:Math.max(4,Math.min(vh-h-4,c[0].y))};
+    pop.style.left=q.x+'px'; pop.style.top=q.y+'px'; pop.style.display='block';
+  }
+
+  /* Record the actual square touched. Delayed display is intentional: it runs
+     after the legacy tap/drag code has finished, but it never changes owner. */
+  document.addEventListener('pointerdown',ev=>{
+    const id=realPieceId(ev); if(id==null)return;
+    markOwner(id);
+  },true);
+  addEventListener('pointerup',()=>setTimeout(popupPosition,0),true);
+
+  function command(action){
+    const id=Number(owner);
+    if(!Number.isFinite(id)||!S?.[id]||isShelf(id)||paused)return;
+    try{sel=id;}catch(_){ }
+    if(action==='s'){
+      try{home(id,false);}catch(_){return;}
+      moves+=.5; const m=document.getElementById('moves'); if(m)m.textContent=moves;
+      owner=null; pop.style.display='none';
+      return;
+    }
+    try{
+      transform(action==='r'?'r':'f');
+      owner=id; sel=id;
+      moves+=action==='r'?.25:.5;
+      const m=document.getElementById('moves'); if(m)m.textContent=moves;
+      buzz(action==='r'?12:[10,25,10]);
+      requestAnimationFrame(popupPosition);
+    }catch(_){ }
+  }
+  addEventListener('message',ev=>{
+    const d=ev.data;
+    if(!d||d.type!=='ap2177tool')return;
+    command(d.action);
+  });
+
+  /* v2.1.64 had an orientationchange timer that returned every floating portal
+     piece to SHELF. That is why three visible board pieces became one after a
+     portrait round-trip: the untouched placed piece survived, while pieces
+     rotated/flipped by popup had been lifted into the portal and were homed.
+     Divert that old timer to an empty dummy portal during the orientation event. */
+  const realPortal=window.__piecePortal2116||document.getElementById('piecePortal2116');
+  const dummy=document.createElement('div');
+  dummy.id='apOrientationDummy2177';
+  dummy.style.display='none';
+  document.body.appendChild(dummy);
+  addEventListener('orientationchange',()=>{
+    const keep=window.__piecePortal2116||realPortal;
+    window.__piecePortal2116=dummy;
+    pop.style.display='none';
+    setTimeout(()=>{
+      window.__piecePortal2116=keep||realPortal;
+      if(owner!=null)setTimeout(popupPosition,180);
+    },40);
+  },true);
+
+  addEventListener('resize',()=>{ if(owner!=null) setTimeout(popupPosition,80); });
+
+  document.title='ANSSIPASI '+VERSION+' · ISOLATED POPUP';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
+
