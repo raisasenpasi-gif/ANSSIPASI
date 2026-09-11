@@ -10021,3 +10021,89 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.76 VISUAL-SELECTION TOOL OWNER -->
+<script>
+(()=>{
+  const VERSION='v2.1.76';
+  const tools=document.getElementById('tools');
+
+  function isShelf(id){
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
+  }
+  function visibleSelectedId(){
+    const list=[...document.querySelectorAll('.piece.sel')]
+      .filter(e=>{
+        const id=Number(e.dataset.id);
+        if(!Number.isFinite(id)||!S?.[id]||isShelf(id)) return false;
+        const cs=getComputedStyle(e);
+        return cs.display!=='none' && cs.visibility!=='hidden';
+      });
+    if(!list.length) return null;
+    /* If historical code has left more than one .sel, use the visually topmost one. */
+    list.sort((a,b)=>{
+      const za=parseInt(getComputedStyle(a).zIndex)||0;
+      const zb=parseInt(getComputedStyle(b).zIndex)||0;
+      if(za!==zb) return za-zb;
+      return [...document.querySelectorAll('.piece')].indexOf(a)-[...document.querySelectorAll('.piece')].indexOf(b);
+    });
+    return Number(list[list.length-1].dataset.id);
+  }
+  function keepOnlySelected(id){
+    document.querySelectorAll('.piece.sel').forEach(e=>{
+      if(Number(e.dataset.id)!==id)e.classList.remove('sel');
+    });
+    const e=document.querySelector(`.piece[data-id="${id}"]`);
+    if(e)e.classList.add('sel');
+    try{sel=id;}catch(_){ }
+  }
+  function mutateSelected(kind){
+    const id=visibleSelectedId();
+    if(id==null||paused)return;
+    let e=document.querySelector(`.piece[data-id="${id}"]`); if(!e)return;
+    const r=e.getBoundingClientRect();
+    if(S[id].place) clear(id);
+    (window.__piecePortal2116||document.body).append(e);
+    S[id].c = kind==='r'
+      ? norm(S[id].c.map(q=>[-q[1],q[0]]))
+      : norm(S[id].c.map(q=>[-q[0],q[1]]));
+    render(id);
+    e=document.querySelector(`.piece[data-id="${id}"]`);
+    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
+    keepOnlySelected(id);
+    tools.style.display='flex'; tools.style.visibility='visible';
+    requestAnimationFrame(positionTools);
+    if(kind==='r'){moves+=.25;buzz(12);}
+    else{moves+=.5;buzz([10,25,10]);}
+    const m=document.getElementById('moves');if(m)m.textContent=moves;
+  }
+  function shelfSelected(){
+    const id=visibleSelectedId();
+    if(id==null)return;
+    try{home(id,false);}catch(_){return;}
+    moves+=.5; const m=document.getElementById('moves');if(m)m.textContent=moves;
+    document.querySelectorAll('.piece.sel').forEach(e=>e.classList.remove('sel'));
+    try{sel=null;}catch(_){ }
+    tools.style.display='none';tools.style.visibility='hidden';
+  }
+  function replace(id,action){
+    const old=document.getElementById(id); if(!old)return;
+    const b=old.cloneNode(true); old.replaceWith(b);
+    b.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
+      action();
+    },true);
+    b.addEventListener('click',ev=>{
+      ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
+    },true);
+  }
+  replace('rot',()=>mutateSelected('r'));
+  replace('flp',()=>mutateSelected('f'));
+  replace('back',shelfSelected);
+
+  document.title='ANSSIPASI '+VERSION+' · VISUAL SELECTION OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
