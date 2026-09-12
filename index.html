@@ -10561,3 +10561,181 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+<!-- ANSSIPASI v2.1.84 SINGLE CLEAN POPUP OWNER -->
+<style>
+/* Retire every historical popup host. v2.1.84 owns popup UI alone. */
+#tools,#apTools2181,#apTools2182,#apTools2183{display:none!important;visibility:hidden!important;pointer-events:none!important}
+.piece.apActive2181,.piece.apActive2182,.piece.apActive2183{filter:none!important}
+#apTools2184{
+  position:fixed;display:none;z-index:2147483647;pointer-events:auto;
+  width:306px;height:58px;overflow:visible;
+}
+@media (orientation:portrait){#apTools2184{display:none!important}}
+.piece.apActive2184{filter:drop-shadow(0 0 8px #ff9b19) drop-shadow(0 0 14px #ff9b19)!important}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.84';
+
+  /* Remove the actual DOM nodes created by every older popup patch. Their old
+     timers may still run, but only against detached nodes and can no longer
+     paint or receive touches on the page. */
+  document.querySelectorAll('#apTools2181,#apTools2182,#apTools2183').forEach(n=>n.remove());
+  document.querySelectorAll('.piece.apActive2181,.piece.apActive2182,.piece.apActive2183').forEach(e=>{
+    e.classList.remove('apActive2181','apActive2182','apActive2183');
+  });
+
+  let owner=null;
+  let pending=null;
+  let transformedOwner=false;
+
+  const host=document.createElement('div');
+  host.id='apTools2184';
+  document.body.appendChild(host);
+  const root=host.attachShadow({mode:'open'});
+  root.innerHTML=`
+    <style>
+      *{box-sizing:border-box}
+      .bar{height:56px;display:flex;gap:8px;align-items:center;padding:6px;background:#fff;border:1px solid #eab8ca;border-radius:12px;box-shadow:0 5px 16px #56324438;font-family:Arial,sans-serif}
+      button{height:42px;border:0;border-radius:10px;padding:0 15px;background:#f6ccdc;color:#5c3b49;font-size:12px;font-weight:900;white-space:nowrap;touch-action:manipulation}
+      button:active{transform:scale(.96)}
+    </style>
+    <div class="bar">
+      <button data-a="r">↻ ROTATE</button>
+      <button data-a="f">⇋ FLIP</button>
+      <button data-a="s">↩ SHELF</button>
+    </div>`;
+
+  const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
+  const state=id=>S?.[Number(id)];
+  const exists=id=>Number.isFinite(Number(id))&&!!state(id)&&!!piece(id);
+  const placed=id=>exists(id)&&!!state(id).place;
+  const onRealShelf=id=>{
+    const e=piece(id);
+    return !!(e && e.parentElement===shelf && !state(id)?.place);
+  };
+  const usableOwner=id=>{
+    id=Number(id);
+    if(!exists(id)||onRealShelf(id))return false;
+    /* A transformed popup piece is deliberately floating in the portal until
+       its next DROP, so it remains a valid popup owner. */
+    return placed(id) || (transformedOwner && owner===id);
+  };
+
+  function idFromPieceTarget(ev){
+    const p=ev.target?.closest?.('.piece');
+    const id=Number(p?.dataset.id);
+    return exists(id)?id:null;
+  }
+  function idFromPlacedTarget(ev){
+    const id=idFromPieceTarget(ev);
+    return id!=null&&placed(id)?id:null;
+  }
+  function paint(){
+    document.querySelectorAll('.piece.apActive2184').forEach(e=>e.classList.remove('apActive2184'));
+    if(owner!=null&&usableOwner(owner))piece(owner)?.classList.add('apActive2184');
+  }
+  function hide(){host.style.display='none';}
+  function clearOwner(){owner=null;pending=null;transformedOwner=false;paint();hide();}
+  function setOwner(id){
+    id=Number(id);
+    if(!placed(id))return false;
+    owner=id; transformedOwner=false; paint(); show(); return true;
+  }
+  function show(){
+    if(owner==null||!usableOwner(owner)||innerHeight>innerWidth){hide();return;}
+    const b=document.getElementById('board');
+    const br=b?.getBoundingClientRect?.();
+    if(!br){hide();return;}
+    const w=306,h=58;
+    let x=br.left+(br.width-w)/2;
+    let y=br.top-h-8;
+    x=Math.max(6,Math.min(innerWidth-w-6,x));
+    if(y<6)y=Math.min(innerHeight-h-6,br.bottom+8);
+    host.style.left=x+'px';host.style.top=y+'px';host.style.display='block';
+  }
+
+  /* A shelf piece may be remembered while dragging, but it is not allowed to
+     become popup owner until DROP has really produced S[id].place. */
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.composedPath?.().includes(host))return;
+    const id=idFromPieceTarget(ev);
+    if(id!=null)pending=id;
+    const p=idFromPlacedTarget(ev);
+    if(p!=null)setOwner(p);
+  },true);
+
+  document.addEventListener('pointerup',ev=>{
+    if(ev.composedPath?.().includes(host))return;
+    const candidate=pending;
+    pending=null;
+    setTimeout(()=>{
+      const p=idFromPlacedTarget(ev);
+      if(p!=null){setOwner(p);return;}
+      if(candidate!=null&&placed(candidate)){setOwner(candidate);return;}
+      /* Never recover owner from global sel. sel can legally point at a shelf
+         or legacy floating piece and was the cause of the shelf glow bug. */
+      if(owner!=null && onRealShelf(owner))clearOwner();
+      else {paint();show();}
+    },0);
+  },false);
+
+  function doTransform(id,kind){
+    id=Number(id); if(owner!==id||!usableOwner(id))return;
+    let e=piece(id); if(!e)return;
+    const r=e.getBoundingClientRect();
+    try{if(state(id).place)clear(id);}catch(_){ }
+    (window.__piecePortal2116||document.body).append(e);
+    state(id).c = kind==='r'
+      ? norm(state(id).c.map(q=>[-q[1],q[0]]))
+      : norm(state(id).c.map(q=>[-q[0],q[1]]));
+    render(id);
+    e=piece(id);if(!e)return;
+    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
+    transformedOwner=true;
+    paint();show();
+    moves+=kind==='r'?.25:.5;
+    const m=document.getElementById('moves');if(m)m.textContent=moves;
+    try{buzz(kind==='r'?12:[10,25,10]);}catch(_){ }
+  }
+  function doShelf(id){
+    id=Number(id); if(owner!==id||!usableOwner(id))return;
+    try{home(id,false);}catch(_){return;}
+    moves+=.5;const m=document.getElementById('moves');if(m)m.textContent=moves;
+    clearOwner();
+  }
+
+  root.addEventListener('pointerdown',ev=>{
+    const b=ev.target.closest('button');if(!b)return;
+    ev.preventDefault();ev.stopPropagation();
+    const id=Number(owner);
+    if(!usableOwner(id)){clearOwner();return;}
+    const a=b.dataset.a;
+    if(a==='s')doShelf(id); else if(a==='r'||a==='f')doTransform(id,a);
+  },true);
+  root.addEventListener('pointerup',ev=>{ev.preventDefault();ev.stopPropagation();},true);
+  root.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();},true);
+
+  /* Visibility watchdog may only preserve an existing owner. It is forbidden
+     to invent one from sel or from anything currently on SHELF. */
+  setInterval(()=>{
+    if(owner==null){hide();return;}
+    if(onRealShelf(owner)){clearOwner();return;}
+    if(usableOwner(owner)){paint();show();}else clearOwner();
+  },180);
+
+  addEventListener('orientationchange',()=>{
+    hide();
+    setTimeout(()=>{
+      if(owner!=null&&onRealShelf(owner))clearOwner();
+      else if(owner!=null&&usableOwner(owner)){paint();show();}
+    },260);
+  });
+  addEventListener('resize',()=>{if(owner!=null)setTimeout(show,90);});
+
+  document.title='ANSSIPASI '+VERSION+' · SINGLE CLEAN POPUP OWNER';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
