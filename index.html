@@ -10242,277 +10242,157 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.78 POPUP VISIBILITY + SCORE DROP GUARD -->
+<!-- ANSSIPASI v2.1.81 CLEAN ISOLATED POPUP -->
 <style>
-#apTools2177{visibility:visible!important;pointer-events:auto!important}
+/* v2.1.81 deliberately starts from the last stable-movement build (v2.1.77).
+   All older popup UIs are retired. The active glow is ours and does not use
+   .sel, so it cannot disturb the already-working finger tap sequence. */
+#tools,#apTools2177{display:none!important;visibility:hidden!important;pointer-events:none!important}
+.piece.apActive2181{filter:drop-shadow(0 0 8px #ff9b19) drop-shadow(0 0 14px #ff9b19)!important}
+#apTools2181{
+  position:fixed;display:none;z-index:2147483647;border:0;background:transparent;
+  width:232px;height:48px;overflow:visible;pointer-events:auto;
+}
+@media (orientation:portrait){#apTools2181{display:none!important}}
 </style>
 <script>
 (()=>{
-  const VERSION='v2.1.78';
-  const pop=document.getElementById('apTools2177');
-  if(!pop)return;
-
-  /* PARTIAL can retain a historical paused=true flag although the task is live.
-     The piece gestures still work in that state, but v2.1.77 used the flag to
-     suppress its popup. Do not use paused as the popup visibility authority. */
-  const livePiece=id=>{
-    id=Number(id);
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
-    return Number.isFinite(id)&&S?.[id]&&e&&e.parentElement!==shelf;
-  };
-
-  function selectedBoardId(){
-    const direct=Number(typeof sel!=='undefined'?sel:null);
-    if(livePiece(direct))return direct;
-    const candidates=[...document.querySelectorAll('.piece.sel,.piece.apOwner2175')]
-      .map(e=>Number(e.dataset.id)).filter(livePiece);
-    return candidates.length?candidates[candidates.length-1]:null;
-  }
-
-  function showFor(id){
-    id=Number(id);
-    if(!livePiece(id)||innerHeight>innerWidth){pop.style.display='none';return;}
-    const e=document.querySelector(`.piece[data-id="${id}"]`);
-    const r=e.getBoundingClientRect(),w=224,h=46,g=7,vw=innerWidth,vh=innerHeight;
-    const spots=[
-      {x:r.left+(r.width-w)/2,y:r.top-h-g},
-      {x:r.left+(r.width-w)/2,y:r.bottom+g},
-      {x:r.right+g,y:r.top+(r.height-h)/2},
-      {x:r.left-w-g,y:r.top+(r.height-h)/2}
-    ];
-    let q=spots.find(q=>q.x>=4&&q.y>=4&&q.x+w<=vw-4&&q.y+h<=vh-4);
-    if(!q)q={x:Math.max(4,Math.min(vw-w-4,spots[0].x)),y:Math.max(4,Math.min(vh-h-4,spots[0].y))};
-    pop.style.left=q.x+'px';pop.style.top=q.y+'px';pop.style.display='block';pop.style.visibility='visible';
-  }
-
-  /* Show the isolated toolbar after a genuine board-piece release regardless
-     of the stale PARTIAL paused flag. This does not change tap/drag ownership. */
-  document.addEventListener('pointerup',ev=>{
-    if(ev.target?.closest?.('#apTools2177,#tools'))return;
-    const p=ev.target?.closest?.('.piece');
-    const id=Number(p?.dataset.id);
-    if(livePiece(id))setTimeout(()=>showFor(id),0);
-    else{
-      const sid=selectedBoardId(); if(sid!=null)setTimeout(()=>showFor(sid),0);
-    }
-  },false);
-
-  /* A board piece may overlap the banner, but SCORE is not a legal resting
-     area. If a floating piece is released with its centre inside SCORE, send it
-     back to SHELF. */
-  document.addEventListener('pointerup',()=>{
-    setTimeout(()=>{
-      const scoreBox=document.querySelector('.scoreBox,#scoreBox,#scorePanel,.scorePanel') ||
-        [...document.querySelectorAll('aside,section,div')].find(e=>/SCORE/.test(e.textContent||'')&&e.getBoundingClientRect().width>80);
-      if(!scoreBox)return;
-      const sr=scoreBox.getBoundingClientRect();
-      document.querySelectorAll('#piecePortal2116>.piece').forEach(e=>{
-        const id=Number(e.dataset.id); if(!Number.isFinite(id)||!S?.[id])return;
-        const r=e.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
-        if(x>=sr.left&&x<=sr.right&&y>=sr.top&&y<=sr.bottom){
-          try{home(id,false);}catch(_){}
-          pop.style.display='none';
-        }
-      });
-    },0);
-  },false);
-
-  document.title='ANSSIPASI '+VERSION+' · POPUP VISIBILITY FIX';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.79 PERSISTENT ISOLATED POPUP OWNER -->
-<script>
-(()=>{
-  const VERSION='v2.1.79';
-  const pop=document.getElementById('apTools2177');
-  if(!pop)return;
+  const VERSION='v2.1.81';
   let owner=null;
-  const piece=id=>document.querySelector(`.piece[data-id="${id}"]`);
-  const live=id=>{ const e=piece(Number(id)); return !!(e&&S?.[Number(id)]&&e.parentElement!==shelf); };
-  const touched=ev=>{
-    const e=ev.target?.closest?.('.piece');
-    const id=Number(e?.dataset.id);
-    return live(id)?id:null;
-  };
-  function setOwner(id){
-    id=Number(id); if(!live(id))return;
-    owner=id; window.__apPopupOwner2179=id;
-  }
-  function place(){
-    if(owner==null||!live(owner)||innerHeight>innerWidth){pop.style.display='none';return;}
-    const r=piece(owner).getBoundingClientRect(),w=224,h=46,g=7,vw=innerWidth,vh=innerHeight;
-    const a=[
-      {x:r.left+(r.width-w)/2,y:r.top-h-g},
-      {x:r.left+(r.width-w)/2,y:r.bottom+g},
-      {x:r.right+g,y:r.top+(r.height-h)/2},
-      {x:r.left-w-g,y:r.top+(r.height-h)/2}
-    ];
-    let q=a.find(q=>q.x>=4&&q.y>=4&&q.x+w<=vw-4&&q.y+h<=vh-4);
-    if(!q)q={x:Math.max(4,Math.min(vw-w-4,a[0].x)),y:Math.max(4,Math.min(vh-h-4,a[0].y))};
-    pop.style.cssText += `;left:${q.x}px!important;top:${q.y}px!important;display:block!important;visibility:visible!important;pointer-events:auto!important`;
-  }
-  document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#tools'))return;
-    const id=touched(ev); if(id!=null)setOwner(id);
-  },true);
-  document.addEventListener('pointerup',ev=>{
-    const id=touched(ev); if(id!=null)setOwner(id);
-    setTimeout(place,0);
-  },true);
 
-  /* Keep the popup visible even when historical PARTIAL writers retain paused=true
-     or try to hide the old toolbar after the release. */
-  setInterval(()=>{ if(owner!=null&&live(owner)&&innerWidth>innerHeight)place(); },120);
-
-  /* v2.1.77's message handler deliberately refuses commands while paused=true.
-     PARTIAL can carry that stale flag, so execute the iframe command here using
-     the immutable piece id captured from the real piece touch. */
-  addEventListener('message',ev=>{
-    const d=ev.data; if(!d||d.type!=='ap2177tool')return;
-    const id=Number(window.__apPopupOwner2179);
-    if(!live(id))return;
-    try{sel=id;}catch(_){ }
-    if(d.action==='s'){
-      try{home(id,false);}catch(_){return;}
-      owner=null;window.__apPopupOwner2179=null;pop.style.display='none';return;
-    }
-    try{
-      transform(d.action==='r'?'r':'f');
-      owner=id;window.__apPopupOwner2179=id;sel=id;
-      requestAnimationFrame(place);
-    }catch(_){ }
-  });
-  document.title='ANSSIPASI '+VERSION+' · PERSISTENT ISOLATED POPUP';
-  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
-    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
-})();
-</script>
-
-
-<!-- ANSSIPASI v2.1.80 SAFE-ZONE POPUP -->
-<style>
-/* v2.1.80: retire the iframe popup. Put the toolbar in a guaranteed empty
-   strip immediately above the board, so legacy coordinate handlers can never
-   interpret a toolbar press as a press on a neighbouring piece. */
-#apTools2177{display:none!important;visibility:hidden!important;pointer-events:none!important}
-#apTools2180{
-  position:fixed;display:none;z-index:2147483647;
-  height:40px;padding:4px;gap:5px;align-items:center;
-  background:#fff;border:1px solid #eab8ca;border-radius:10px;
-  box-shadow:0 5px 16px #56324438;pointer-events:auto;white-space:nowrap;
-}
-#apTools2180 button{
-  height:30px;border:0;border-radius:8px;padding:0 9px;
-  background:#f6ccdc;color:#5c3b49;font-size:10px;font-weight:900;
-  touch-action:manipulation;
-}
-#apTools2180 button:active{transform:scale(.96)}
-@media (orientation:portrait){#apTools2180{display:none!important}}
-</style>
-<script>
-(()=>{
-  const VERSION='v2.1.80';
-  let owner=null;
-  const bar=document.createElement('div');
-  bar.id='apTools2180';
-  bar.innerHTML='<button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button>';
-  document.body.appendChild(bar);
+  /* iframe isolation is intentional: touches on these buttons never enter the
+     game's historic pointer handlers, so a neighbouring board piece cannot
+     become active merely because a popup button was pressed. */
+  const pop=document.createElement('iframe');
+  pop.id='apTools2181';
+  pop.setAttribute('aria-label','Piece tools');
+  pop.srcdoc=`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;background:transparent;overflow:hidden;font-family:Arial,sans-serif}
+    .bar{height:46px;display:flex;gap:5px;align-items:center;padding:5px;background:white;border:1px solid #eab8ca;border-radius:10px;box-shadow:0 5px 16px #56324438}
+    button{height:34px;border:0;border-radius:8px;padding:0 9px;background:#f6ccdc;color:#5c3b49;font-size:10px;font-weight:900;white-space:nowrap;touch-action:manipulation}
+    button:active{transform:scale(.96)}
+  </style>
+  <div class="bar"><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>
+  <script>
+    document.addEventListener('pointerdown',e=>{
+      const b=e.target.closest('button'); if(!b)return;
+      e.preventDefault();e.stopPropagation();
+      parent.postMessage({type:'ap2181tool',action:b.dataset.a},'*');
+    },true);
+  <\/script>`;
+  document.body.appendChild(pop);
 
   const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
-  const live=id=>{
-    id=Number(id); const e=piece(id);
-    return Number.isFinite(id)&&!!S?.[id]&&!!e&&e.parentElement!==shelf;
+  const isShelf=id=>{
+    const e=piece(id);
+    return !!(e && e.parentElement===shelf && !S?.[id]?.place);
   };
-  const pieceFromEvent=ev=>{
-    const e=ev.target?.closest?.('.piece');
+  const live=id=>{
+    id=Number(id);const e=piece(id);
+    return Number.isFinite(id)&&!!S?.[id]&&!!e&&!isShelf(id);
+  };
+  const directHit=ev=>{
+    const block=ev.target?.closest?.('.piece .block');
+    const e=block?.closest?.('.piece');
     const id=Number(e?.dataset.id);
     return live(id)?id:null;
   };
-  const selectedLive=()=>{
-    const id=Number(typeof sel!=='undefined'?sel:null);
-    return live(id)?id:null;
-  };
 
-  function makeOwner(id){
+  function paint(id){
+    document.querySelectorAll('.piece.apActive2181').forEach(e=>e.classList.remove('apActive2181'));
+    if(live(id))piece(id)?.classList.add('apActive2181');
+  }
+  function setOwner(id){
     id=Number(id); if(!live(id))return false;
-    owner=id; window.__apPopupOwner2180=id;
-    /* One write only, never a timer/heartbeat. This gives the just-dropped first
-       piece the same glow that later pieces already received naturally. */
-    try{
-      document.querySelectorAll('.piece.sel').forEach(e=>e.classList.remove('sel'));
-      piece(id)?.classList.add('sel');
-      sel=id;
-    }catch(_){ }
-    return true;
+    owner=id;window.__apPopupOwner2181=id;paint(id);return true;
+  }
+  function clearOwner(){
+    owner=null;window.__apPopupOwner2181=null;paint(null);pop.style.display='none';
   }
 
   function boardRect(){
-    const b=document.getElementById('board') || document.querySelector('#bw .board,.board');
-    return b?.getBoundingClientRect?.() || null;
+    const b=document.getElementById('board')||document.querySelector('#bw .board,.board');
+    return b?.getBoundingClientRect?.()||null;
   }
   function show(){
-    if(owner==null||!live(owner)||innerHeight>innerWidth){bar.style.display='none';return;}
-    const br=boardRect(); if(!br){bar.style.display='none';return;}
-    bar.style.display='flex';
-    /* Measure only after display. Keep the complete toolbar above the board,
-       never above another piece. */
-    const w=bar.getBoundingClientRect().width||205;
+    if(owner==null||!live(owner)||innerHeight>innerWidth){pop.style.display='none';return;}
+    const br=boardRect();if(!br){pop.style.display='none';return;}
+    const w=232,h=48;
     const x=Math.max(6,Math.min(innerWidth-w-6,br.left+(br.width-w)/2));
-    const y=Math.max(6,br.top-44);
-    bar.style.left=x+'px'; bar.style.top=y+'px';
+    const y=Math.max(6,br.top-h-6);
+    pop.style.left=x+'px';pop.style.top=y+'px';pop.style.display='block';
   }
 
-  /* Shelf drag pointerup often lands on a board square, not on the moved piece.
-     In that case sel still identifies the piece that began the drag. */
-  document.addEventListener('pointerup',ev=>{
-    if(ev.target?.closest?.('#apTools2180'))return;
-    let id=pieceFromEvent(ev);
-    if(id==null)id=selectedLive();
-    if(id!=null&&makeOwner(id)) requestAnimationFrame(show);
-  },false);
-
-  /* A simple board tap always becomes the owner immediately. */
+  /* Piece touch: only remember the physical piece under the finger. No sel,
+     choose(), transform(), timers or legacy toolbar state are modified. */
   document.addEventListener('pointerdown',ev=>{
-    if(ev.target?.closest?.('#apTools2180'))return;
-    const id=pieceFromEvent(ev);
-    if(id!=null)makeOwner(id);
+    const id=directHit(ev);if(id!=null)setOwner(id);
   },true);
 
-  function command(a){
-    const id=Number(owner);
+  /* After a shelf drag has completed, the core still leaves sel pointing at
+     the dragged piece. Read it only after DROP has finished, then paint our
+     independent glow. This is what gives the first dropped piece a glow too. */
+  addEventListener('pointerup',ev=>{
+    if(ev.target?.closest?.('#apTools2181'))return;
+    setTimeout(()=>{
+      let id=directHit(ev);
+      if(id==null){
+        const s=Number(typeof sel!=='undefined'?sel:NaN);
+        if(live(s))id=s;
+      }
+      if(id!=null&&setOwner(id))show();
+    },0);
+  },false);
+
+  function directTransform(id,kind){
     if(!live(id))return;
+    let e=piece(id);if(!e)return;
+    const r=e.getBoundingClientRect();
+    try{if(S[id].place)clear(id);}catch(_){ }
+    (window.__piecePortal2116||document.body).append(e);
+    S[id].c = kind==='r'
+      ? norm(S[id].c.map(q=>[-q[1],q[0]]))
+      : norm(S[id].c.map(q=>[-q[0],q[1]]));
+    render(id);
+    e=piece(id);if(!e)return;
+    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
+    /* Assign sel only now, after the isolated button press has finished. */
     try{sel=id;}catch(_){ }
-    if(a==='s'){
-      try{home(id,false);}catch(_){return;}
-      owner=null;window.__apPopupOwner2180=null;bar.style.display='none';
-      return;
+    setOwner(id);
+    if(kind==='r'){
+      moves+=.25;try{buzz(12);}catch(_){ }
+      if(info)info.innerHTML='<b>↻ ROTATE</b><br>Piece is lifted. Temporary overlap is allowed until DROP.';
+    }else{
+      moves+=.5;try{buzz([10,25,10]);}catch(_){ }
+      if(info)info.innerHTML='<b>⇋ FLIP</b><br>Piece is lifted. Temporary overlap is allowed until DROP.';
     }
-    try{
-      transform(a==='r'?'r':'f');
-      owner=id;window.__apPopupOwner2180=id;sel=id;
-      requestAnimationFrame(show);
-    }catch(_){ }
+    const m=document.getElementById('moves');if(m)m.textContent=moves;
+    requestAnimationFrame(show);
   }
 
-  bar.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('pointerdown',ev=>{
-      ev.preventDefault();
-      /* Toolbar is in the empty safe-zone, so legacy window capture handlers
-         see no piece under these coordinates. The command uses our fixed ID. */
-      command(btn.dataset.a);
-      ev.stopPropagation();
-    });
-    btn.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();});
+  function directShelf(id){
+    if(!live(id))return;
+    try{home(id,false);}catch(_){return;}
+    moves+=.5;const m=document.getElementById('moves');if(m)m.textContent=moves;
+    if(info)info.innerHTML='<b>↩ TO SHELF</b><br>Piece returned to the shelf.';
+    clearOwner();
+  }
+
+  addEventListener('message',ev=>{
+    const d=ev.data;if(!d||d.type!=='ap2181tool')return;
+    const id=Number(owner);if(!live(id)){clearOwner();return;}
+    if(d.action==='s')directShelf(id);
+    else if(d.action==='r'||d.action==='f')directTransform(id,d.action);
   });
 
-  addEventListener('resize',()=>{ if(owner!=null)setTimeout(show,80); });
-  addEventListener('orientationchange',()=>{ bar.style.display='none'; if(owner!=null)setTimeout(show,220); });
+  addEventListener('orientationchange',()=>{
+    pop.style.display='none';
+    setTimeout(()=>{if(owner!=null&&live(owner)){paint(owner);show();}},240);
+  });
+  addEventListener('resize',()=>{if(owner!=null)setTimeout(show,90);});
 
-  document.title='ANSSIPASI '+VERSION+' · SAFE-ZONE POPUP';
+  document.title='ANSSIPASI '+VERSION+' · CLEAN ISOLATED POPUP';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
