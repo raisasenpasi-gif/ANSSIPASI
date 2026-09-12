@@ -10740,17 +10740,17 @@ body.apBoardTransition #tools{
 })();
 </script>
 
-<!-- ANSSIPASI v2.1.85 VISUAL POSITION POPUP OWNER -->
+<!-- ANSSIPASI v2.1.86 FIXED TOP POPUP POSITION -->
 <style>
 #apTools2184{display:none!important;visibility:hidden!important;pointer-events:none!important}
 .piece.apActive2184{filter:none!important}
-#apTools2185{position:fixed;display:none;z-index:2147483647;pointer-events:auto;width:306px;height:58px;overflow:visible}
+#apTools2185{position:fixed;display:none;z-index:2147483647;pointer-events:auto;width:306px;height:58px;overflow:visible;left:0;top:0}
 @media (orientation:portrait){#apTools2185{display:none!important}}
 .piece.apActive2185{filter:drop-shadow(0 0 8px #ff9b19) drop-shadow(0 0 14px #ff9b19)!important}
 </style>
 <script>
 (()=>{
-  const VERSION='v2.1.85';
+  const VERSION='v2.1.86';
   let owner=null, pending=null, transformed=false;
 
   const host=document.createElement('div');
@@ -10797,11 +10797,15 @@ body.apBoardTransition #tools{
   function show(){
     if(owner==null||!usable(owner)||innerHeight>innerWidth){hide();return;}
     const b=document.getElementById('board'), br=b?.getBoundingClientRect?.();
+    const hd=document.querySelector('header'), hr=hd?.getBoundingClientRect?.();
     if(!br){hide();return;}
     const w=306,h=58;
-    let x=br.left+(br.width-w)/2, y=br.top-h-8;
+    /* v2.1.86: popup has ONE fixed safe position. It never follows the piece
+       vertically and therefore can never drift to the bottom of the screen. */
+    let x=br.left+(br.width-w)/2;
+    let y=(hr?.bottom ?? 58)+4;
     x=Math.max(6,Math.min(innerWidth-w-6,x));
-    if(y<6)y=Math.min(innerHeight-h-6,br.bottom+8);
+    y=Math.max(6,Math.min(innerHeight-h-6,y));
     host.style.left=x+'px'; host.style.top=y+'px'; host.style.display='block';
   }
   function setOwner(id){
@@ -10868,7 +10872,7 @@ body.apBoardTransition #tools{
   addEventListener('orientationchange',()=>{hide();setTimeout(()=>{if(owner!=null&&usable(owner)){paint();show();}},260);});
   addEventListener('resize',()=>{if(owner!=null)setTimeout(show,90);});
 
-  document.title='ANSSIPASI '+VERSION+' · VISUAL POSITION POPUP OWNER';
+  document.title='ANSSIPASI '+VERSION+' · FIXED TOP POPUP';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
