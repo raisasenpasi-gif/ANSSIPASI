@@ -10322,3 +10322,72 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.79 PERSISTENT ISOLATED POPUP OWNER -->
+<script>
+(()=>{
+  const VERSION='v2.1.79';
+  const pop=document.getElementById('apTools2177');
+  if(!pop)return;
+  let owner=null;
+  const piece=id=>document.querySelector(`.piece[data-id="${id}"]`);
+  const live=id=>{ const e=piece(Number(id)); return !!(e&&S?.[Number(id)]&&e.parentElement!==shelf); };
+  const touched=ev=>{
+    const e=ev.target?.closest?.('.piece');
+    const id=Number(e?.dataset.id);
+    return live(id)?id:null;
+  };
+  function setOwner(id){
+    id=Number(id); if(!live(id))return;
+    owner=id; window.__apPopupOwner2179=id;
+  }
+  function place(){
+    if(owner==null||!live(owner)||innerHeight>innerWidth){pop.style.display='none';return;}
+    const r=piece(owner).getBoundingClientRect(),w=224,h=46,g=7,vw=innerWidth,vh=innerHeight;
+    const a=[
+      {x:r.left+(r.width-w)/2,y:r.top-h-g},
+      {x:r.left+(r.width-w)/2,y:r.bottom+g},
+      {x:r.right+g,y:r.top+(r.height-h)/2},
+      {x:r.left-w-g,y:r.top+(r.height-h)/2}
+    ];
+    let q=a.find(q=>q.x>=4&&q.y>=4&&q.x+w<=vw-4&&q.y+h<=vh-4);
+    if(!q)q={x:Math.max(4,Math.min(vw-w-4,a[0].x)),y:Math.max(4,Math.min(vh-h-4,a[0].y))};
+    pop.style.cssText += `;left:${q.x}px!important;top:${q.y}px!important;display:block!important;visibility:visible!important;pointer-events:auto!important`;
+  }
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#tools'))return;
+    const id=touched(ev); if(id!=null)setOwner(id);
+  },true);
+  document.addEventListener('pointerup',ev=>{
+    const id=touched(ev); if(id!=null)setOwner(id);
+    setTimeout(place,0);
+  },true);
+
+  /* Keep the popup visible even when historical PARTIAL writers retain paused=true
+     or try to hide the old toolbar after the release. */
+  setInterval(()=>{ if(owner!=null&&live(owner)&&innerWidth>innerHeight)place(); },120);
+
+  /* v2.1.77's message handler deliberately refuses commands while paused=true.
+     PARTIAL can carry that stale flag, so execute the iframe command here using
+     the immutable piece id captured from the real piece touch. */
+  addEventListener('message',ev=>{
+    const d=ev.data; if(!d||d.type!=='ap2177tool')return;
+    const id=Number(window.__apPopupOwner2179);
+    if(!live(id))return;
+    try{sel=id;}catch(_){ }
+    if(d.action==='s'){
+      try{home(id,false);}catch(_){return;}
+      owner=null;window.__apPopupOwner2179=null;pop.style.display='none';return;
+    }
+    try{
+      transform(d.action==='r'?'r':'f');
+      owner=id;window.__apPopupOwner2179=id;sel=id;
+      requestAnimationFrame(place);
+    }catch(_){ }
+  });
+  document.title='ANSSIPASI '+VERSION+' · PERSISTENT ISOLATED POPUP';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
