@@ -10391,3 +10391,129 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.80 SAFE-ZONE POPUP -->
+<style>
+/* v2.1.80: retire the iframe popup. Put the toolbar in a guaranteed empty
+   strip immediately above the board, so legacy coordinate handlers can never
+   interpret a toolbar press as a press on a neighbouring piece. */
+#apTools2177{display:none!important;visibility:hidden!important;pointer-events:none!important}
+#apTools2180{
+  position:fixed;display:none;z-index:2147483647;
+  height:40px;padding:4px;gap:5px;align-items:center;
+  background:#fff;border:1px solid #eab8ca;border-radius:10px;
+  box-shadow:0 5px 16px #56324438;pointer-events:auto;white-space:nowrap;
+}
+#apTools2180 button{
+  height:30px;border:0;border-radius:8px;padding:0 9px;
+  background:#f6ccdc;color:#5c3b49;font-size:10px;font-weight:900;
+  touch-action:manipulation;
+}
+#apTools2180 button:active{transform:scale(.96)}
+@media (orientation:portrait){#apTools2180{display:none!important}}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.80';
+  let owner=null;
+  const bar=document.createElement('div');
+  bar.id='apTools2180';
+  bar.innerHTML='<button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button>';
+  document.body.appendChild(bar);
+
+  const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
+  const live=id=>{
+    id=Number(id); const e=piece(id);
+    return Number.isFinite(id)&&!!S?.[id]&&!!e&&e.parentElement!==shelf;
+  };
+  const pieceFromEvent=ev=>{
+    const e=ev.target?.closest?.('.piece');
+    const id=Number(e?.dataset.id);
+    return live(id)?id:null;
+  };
+  const selectedLive=()=>{
+    const id=Number(typeof sel!=='undefined'?sel:null);
+    return live(id)?id:null;
+  };
+
+  function makeOwner(id){
+    id=Number(id); if(!live(id))return false;
+    owner=id; window.__apPopupOwner2180=id;
+    /* One write only, never a timer/heartbeat. This gives the just-dropped first
+       piece the same glow that later pieces already received naturally. */
+    try{
+      document.querySelectorAll('.piece.sel').forEach(e=>e.classList.remove('sel'));
+      piece(id)?.classList.add('sel');
+      sel=id;
+    }catch(_){ }
+    return true;
+  }
+
+  function boardRect(){
+    const b=document.getElementById('board') || document.querySelector('#bw .board,.board');
+    return b?.getBoundingClientRect?.() || null;
+  }
+  function show(){
+    if(owner==null||!live(owner)||innerHeight>innerWidth){bar.style.display='none';return;}
+    const br=boardRect(); if(!br){bar.style.display='none';return;}
+    bar.style.display='flex';
+    /* Measure only after display. Keep the complete toolbar above the board,
+       never above another piece. */
+    const w=bar.getBoundingClientRect().width||205;
+    const x=Math.max(6,Math.min(innerWidth-w-6,br.left+(br.width-w)/2));
+    const y=Math.max(6,br.top-44);
+    bar.style.left=x+'px'; bar.style.top=y+'px';
+  }
+
+  /* Shelf drag pointerup often lands on a board square, not on the moved piece.
+     In that case sel still identifies the piece that began the drag. */
+  document.addEventListener('pointerup',ev=>{
+    if(ev.target?.closest?.('#apTools2180'))return;
+    let id=pieceFromEvent(ev);
+    if(id==null)id=selectedLive();
+    if(id!=null&&makeOwner(id)) requestAnimationFrame(show);
+  },false);
+
+  /* A simple board tap always becomes the owner immediately. */
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#apTools2180'))return;
+    const id=pieceFromEvent(ev);
+    if(id!=null)makeOwner(id);
+  },true);
+
+  function command(a){
+    const id=Number(owner);
+    if(!live(id))return;
+    try{sel=id;}catch(_){ }
+    if(a==='s'){
+      try{home(id,false);}catch(_){return;}
+      owner=null;window.__apPopupOwner2180=null;bar.style.display='none';
+      return;
+    }
+    try{
+      transform(a==='r'?'r':'f');
+      owner=id;window.__apPopupOwner2180=id;sel=id;
+      requestAnimationFrame(show);
+    }catch(_){ }
+  }
+
+  bar.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();
+      /* Toolbar is in the empty safe-zone, so legacy window capture handlers
+         see no piece under these coordinates. The command uses our fixed ID. */
+      command(btn.dataset.a);
+      ev.stopPropagation();
+    });
+    btn.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();});
+  });
+
+  addEventListener('resize',()=>{ if(owner!=null)setTimeout(show,80); });
+  addEventListener('orientationchange',()=>{ bar.style.display='none'; if(owner!=null)setTimeout(show,220); });
+
+  document.title='ANSSIPASI '+VERSION+' · SAFE-ZONE POPUP';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
