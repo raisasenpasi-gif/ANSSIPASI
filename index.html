@@ -10547,3 +10547,161 @@ body.apBoardTransition #tools{
     c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.83 IFRAME POPUP COMMAND BRIDGE -->
+<style>
+/* v2.1.83: retire every older popup implementation. Finger gestures remain untouched. */
+#tools,#apTools2177,#apTools2181,#apTools2182{
+  display:none!important;visibility:hidden!important;pointer-events:none!important;
+}
+.piece.apActive2183{
+  filter:drop-shadow(0 0 8px #ff9b19) drop-shadow(0 0 14px #ff9b19)!important;
+}
+#apTools2183{
+  position:fixed;display:none;z-index:2147483647;border:0;background:transparent;
+  width:250px;height:50px;overflow:visible;pointer-events:auto;
+}
+@media (orientation:portrait){#apTools2183{display:none!important}}
+</style>
+<script>
+(()=>{
+  const VERSION='v2.1.83';
+  let owner=null;
+  let pendingPiece=null;
+
+  const pop=document.createElement('iframe');
+  pop.id='apTools2183';
+  pop.setAttribute('aria-label','Piece tools');
+  pop.srcdoc=`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;background:transparent;overflow:hidden;font-family:Arial,sans-serif}
+    .bar{height:48px;display:flex;gap:6px;align-items:center;padding:5px;background:#fff;border:1px solid #eab8ca;border-radius:11px;box-shadow:0 5px 16px #56324438}
+    button{height:36px;border:0;border-radius:9px;padding:0 11px;background:#f6ccdc;color:#5c3b49;font-size:11px;font-weight:900;white-space:nowrap;touch-action:manipulation}
+    button:active{transform:scale(.96)}
+  </style>
+  <div class="bar">
+    <button data-a="r">↻ ROTATE</button>
+    <button data-a="f">⇋ FLIP</button>
+    <button data-a="s">↩ SHELF</button>
+  </div>
+  <script>
+    document.addEventListener('click',e=>{
+      const b=e.target.closest('button');if(!b)return;
+      e.preventDefault();e.stopPropagation();
+      parent.postMessage({type:'ap2183tool',action:b.dataset.a},'*');
+    },true);
+  <\/script>`;
+  document.body.appendChild(pop);
+
+  const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
+  const valid=id=>Number.isFinite(Number(id))&&!!S?.[Number(id)]&&!!piece(id);
+  const isShelf=id=>{
+    id=Number(id);const e=piece(id);
+    return !!(e&&e.parentElement===shelf&&!S?.[id]?.place);
+  };
+  const live=id=>valid(id)&&!isShelf(id);
+
+  function anyPieceId(ev){
+    const e=ev.target?.closest?.('.piece');
+    const id=Number(e?.dataset.id);
+    return valid(id)?id:null;
+  }
+  function boardPieceId(ev){
+    const e=ev.target?.closest?.('.piece');
+    const id=Number(e?.dataset.id);
+    return live(id)?id:null;
+  }
+  function paint(id){
+    document.querySelectorAll('.piece.apActive2183').forEach(e=>e.classList.remove('apActive2183'));
+    if(live(id))piece(id)?.classList.add('apActive2183');
+  }
+  function own(id){
+    id=Number(id);if(!live(id))return false;
+    owner=id;window.__apPopupOwner2183=id;paint(id);return true;
+  }
+  function clearOwner(){
+    owner=null;window.__apPopupOwner2183=null;paint(null);pop.style.display='none';
+  }
+  function show(){
+    if(owner==null||!live(owner)||paused||innerHeight>innerWidth){pop.style.display='none';return;}
+    const br=document.getElementById('board')?.getBoundingClientRect?.();
+    if(!br){pop.style.display='none';return;}
+    const w=250,h=50;
+    let x=br.left+(br.width-w)/2;
+    let y=br.top-h-8;
+    x=Math.max(6,Math.min(innerWidth-w-6,x));
+    if(y<6)y=Math.min(innerHeight-h-6,br.bottom+8);
+    pop.style.left=x+'px';pop.style.top=y+'px';pop.style.display='block';
+  }
+
+  /* Selection only observes real piece touches. It does not alter the finger gesture engine. */
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target===pop)return;
+    const any=anyPieceId(ev);
+    if(any!=null)pendingPiece=any;
+    const id=boardPieceId(ev);
+    if(id!=null){own(id);setTimeout(show,0);}
+  },true);
+
+  addEventListener('pointerup',ev=>{
+    if(ev.target===pop)return;
+    const candidate=pendingPiece;pendingPiece=null;
+    setTimeout(()=>{
+      let id=boardPieceId(ev);
+      if(id==null&&live(candidate))id=candidate;
+      if(id==null){
+        const s=Number(typeof sel!=='undefined'?sel:NaN);
+        if(live(s))id=s;
+      }
+      if(id!=null&&own(id))show();
+    },0);
+  },false);
+
+  function directTransform(id,kind){
+    id=Number(id);if(!live(id)||paused)return;
+    let e=piece(id);if(!e)return;
+    const r=e.getBoundingClientRect();
+    try{if(S[id].place)clear(id);}catch(_){}
+    (window.__piecePortal2116||document.body).append(e);
+    S[id].c = kind==='r'
+      ? norm(S[id].c.map(q=>[-q[1],q[0]]))
+      : norm(S[id].c.map(q=>[-q[0],q[1]]));
+    render(id);
+    e=piece(id);if(!e)return;
+    Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
+    try{sel=id;}catch(_){}
+    own(id);
+    moves+=kind==='r'?.25:.5;
+    const m=document.getElementById('moves');if(m)m.textContent=moves;
+    try{buzz(kind==='r'?12:[10,25,10]);}catch(_){}
+    requestAnimationFrame(show);
+  }
+  function directShelf(id){
+    id=Number(id);if(!live(id)||paused)return;
+    try{home(id,false);}catch(_){return;}
+    moves+=.5;
+    const m=document.getElementById('moves');if(m)m.textContent=moves;
+    clearOwner();
+  }
+
+  addEventListener('message',ev=>{
+    if(ev.source!==pop.contentWindow)return;
+    const d=ev.data;if(!d||d.type!=='ap2183tool')return;
+    const id=Number(owner);
+    if(!live(id)){clearOwner();return;}
+    if(d.action==='s')directShelf(id);
+    else if(d.action==='r'||d.action==='f')directTransform(id,d.action);
+  });
+
+  addEventListener('orientationchange',()=>{
+    pop.style.display='none';
+    setTimeout(()=>{if(owner!=null&&live(owner)){paint(owner);show();}},260);
+  },true);
+  addEventListener('resize',()=>{if(owner!=null)setTimeout(show,90);});
+
+  document.title='ANSSIPASI '+VERSION+' · IFRAME POPUP';
+  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>
+    c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
