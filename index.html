@@ -10876,3 +10876,43 @@ body.apBoardTransition #tools{
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.87 VISIBLE LIGHT-DOM POPUP -->
+<style>
+#apTools2185{display:none!important;visibility:hidden!important;pointer-events:none!important}
+#apTools2187{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;width:306px!important;height:56px!important;pointer-events:auto!important}
+#apTools2187 .apBar2187{height:56px;display:flex;gap:8px;align-items:center;padding:6px;background:#fff;border:1px solid #eab8ca;border-radius:12px;box-shadow:0 5px 16px #56324438;font-family:Arial,sans-serif}
+#apTools2187 button{height:42px;border:0;border-radius:10px;padding:0 15px;background:#f6ccdc;color:#5c3b49;font-size:12px;font-weight:900;white-space:nowrap;touch-action:manipulation}
+@media (orientation:portrait){#apTools2187{display:none!important}}
+.piece.apActive2187{filter:drop-shadow(0 0 8px #ff9b19) drop-shadow(0 0 14px #ff9b19)!important}
+</style>
+<script>
+(()=>{
+ const VERSION='v2.1.87'; let owner=null,pending=null;
+ const old=document.getElementById('apTools2185'); if(old)old.remove();
+ const host=document.createElement('div'); host.id='apTools2187';
+ host.innerHTML='<div class="apBar2187"><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
+ document.body.appendChild(host);
+ const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
+ const state=id=>S?.[Number(id)];
+ const exists=id=>Number.isFinite(Number(id))&&!!state(id)&&!!piece(id);
+ function onShelf(id){const e=piece(id),sh=document.getElementById('shelf');if(!e||!sh)return true;if(e.parentElement===sh)return true;const r=e.getBoundingClientRect(),s=sh.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;return cx>=s.left&&cx<=s.right&&cy>=s.top&&cy<=s.bottom}
+ const usable=id=>exists(id)&&!onShelf(id);
+ function paint(){document.querySelectorAll('.piece.apActive2185,.piece.apActive2187').forEach(e=>e.classList.remove('apActive2185','apActive2187'));if(owner!=null&&usable(owner))piece(owner)?.classList.add('apActive2187')}
+ function hide(){host.style.setProperty('display','none','important')}
+ function show(){if(owner==null||!usable(owner)||innerHeight>innerWidth){hide();return}const b=document.getElementById('board'),br=b?.getBoundingClientRect?.(),hr=document.querySelector('header')?.getBoundingClientRect?.();if(!br){hide();return}const w=306,h=56;let x=br.left+(br.width-w)/2,y=(hr?.bottom??50)+4;x=Math.max(6,Math.min(innerWidth-w-6,x));y=Math.max(6,Math.min(innerHeight-h-6,y));host.style.setProperty('left',x+'px','important');host.style.setProperty('top',y+'px','important');host.style.setProperty('display','block','important');host.style.setProperty('visibility','visible','important')}
+ function setOwner(id){id=Number(id);if(!usable(id))return false;owner=id;paint();show();return true}
+ function clearOwner(){owner=null;pending=null;paint();hide()}
+ function targetId(ev){const e=ev.target?.closest?.('.piece');const id=Number(e?.dataset.id);return exists(id)?id:null}
+ document.addEventListener('pointerdown',ev=>{if(ev.target?.closest?.('#apTools2187'))return;const id=targetId(ev);if(id==null)return;pending=id;if(usable(id))setOwner(id)},true);
+ document.addEventListener('pointerup',ev=>{if(ev.target?.closest?.('#apTools2187'))return;const id=pending??targetId(ev);pending=null;if(id==null)return;const settle=()=>{if(usable(id))setOwner(id);else if(owner===id)clearOwner()};setTimeout(settle,80);setTimeout(settle,180)},true);
+ function doTransform(id,kind){id=Number(id);if(owner!==id||!usable(id))return;let e=piece(id);if(!e)return;const r=e.getBoundingClientRect();try{if(state(id).place)clear(id)}catch(_){};(window.__piecePortal2116||document.body).append(e);state(id).c=kind==='r'?norm(state(id).c.map(q=>[-q[1],q[0]])):norm(state(id).c.map(q=>[-q[0],q[1]]));render(id);e=piece(id);if(!e)return;Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});paint();show();moves+=kind==='r'?.25:.5;const m=document.getElementById('moves');if(m)m.textContent=moves;try{buzz(kind==='r'?12:[10,25,10])}catch(_){}}
+ function doShelf(id){id=Number(id);if(owner!==id||!usable(id))return;try{home(id,false)}catch(_){return}moves+=.5;const m=document.getElementById('moves');if(m)m.textContent=moves;clearOwner()}
+ host.addEventListener('pointerdown',ev=>{const b=ev.target.closest('button');if(!b)return;ev.preventDefault();ev.stopPropagation();const id=Number(owner);if(!usable(id)){clearOwner();return}const a=b.dataset.a;if(a==='s')doShelf(id);else if(a==='r'||a==='f')doTransform(id,a)},true);
+ host.addEventListener('pointerup',ev=>{ev.preventDefault();ev.stopPropagation()},true);host.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation()},true);
+ setInterval(()=>{if(owner==null){hide();return}if(!usable(owner)){clearOwner();return}paint();show()},180);
+ addEventListener('orientationchange',()=>{hide();setTimeout(()=>{if(owner!=null&&usable(owner)){paint();show()}},300)});addEventListener('resize',()=>{if(owner!=null)setTimeout(show,100)});
+ document.title='ANSSIPASI '+VERSION+' · VISIBLE POPUP';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
