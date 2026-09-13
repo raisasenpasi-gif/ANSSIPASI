@@ -10878,101 +10878,144 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.89 SIDE-RAIL POPUP + PIECE SWITCH -->
+<!-- ANSSIPASI v2.1.90 FIXED RIGHT CONTROL PANEL + SINGLE ACTIVE PIECE -->
 <style>
-#apTools2185{display:none!important;visibility:hidden!important;pointer-events:none!important}
-#apTools2187{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important}
-#apTools2187 .apBar2187{display:flex;gap:5px;align-items:center;padding:5px;background:#fff;border:1px solid #eab8ca;border-radius:12px;box-shadow:0 5px 16px #56324438;font-family:Arial,sans-serif}
-#apTools2187 button{border:0;border-radius:9px;background:#f6ccdc;color:#5c3b49;font-size:10px;font-weight:900;white-space:nowrap;touch-action:manipulation}
-#apTools2187.apRail2189{width:92px!important;height:128px!important}
-#apTools2187.apRail2189 .apBar2187{width:92px;height:128px;flex-direction:column;justify-content:center}
-#apTools2187.apRail2189 button{width:80px;height:35px;padding:0 4px}
-#apTools2187.apRow2189{width:246px!important;height:46px!important}
-#apTools2187.apRow2189 .apBar2187{width:246px;height:46px;flex-direction:row}
-#apTools2187.apRow2189 button{height:34px;flex:1;padding:0 5px}
-@media (orientation:portrait){#apTools2187{display:none!important}}
-.piece.apActive2187{filter:drop-shadow(0 0 8px #ff9b19) drop-shadow(0 0 14px #ff9b19)!important}
+#apTools2185,#apTools2187{display:none!important;visibility:hidden!important;pointer-events:none!important}
+#apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important;width:156px!important}
+#apTools2190 .apBar2190{display:flex;flex-direction:column;gap:7px;align-items:stretch;padding:8px;background:#fff;border:1px solid #eab8ca;border-radius:15px;box-shadow:0 7px 20px #56324442;font-family:Arial,sans-serif}
+#apTools2190 button{border:0;border-radius:11px;background:#f6ccdc;color:#5c3b49;font-size:12px;font-weight:900;white-space:nowrap;touch-action:manipulation;height:46px;padding:0 8px}
+@media (orientation:portrait){#apTools2190{display:none!important}}
+/* v2.1.90: only the popup owner is allowed to glow. Historical .sel remains
+   available to the game logic, but its old orange filter is visually neutralized. */
+.piece.sel{filter:drop-shadow(0 4px 4px #5a2e4666)!important}
+.piece.sel .block{box-shadow:none!important}
+.piece.apActive2190{filter:drop-shadow(0 0 9px #ff8a00) drop-shadow(0 0 18px #ffb347) drop-shadow(0 14px 12px #3f1933bb)!important}
+.piece.apActive2190 .block{box-shadow:inset 0 0 0 2px #ffd28a!important}
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.89'; let owner=null,pending=null,ownerLostAt=0;
- const old=document.getElementById('apTools2185'); if(old)old.remove();
- const host=document.createElement('div'); host.id='apTools2187';
- host.innerHTML='<div class="apBar2187"><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
+ const VERSION='v2.1.90'; let owner=null,pending=null;
+ document.querySelectorAll('#apTools2185,#apTools2187').forEach(n=>n.remove());
+ const host=document.createElement('div'); host.id='apTools2190';
+ host.innerHTML='<div class="apBar2190"><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
  document.body.appendChild(host);
  const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
  const state=id=>S?.[Number(id)];
  const exists=id=>Number.isFinite(Number(id))&&!!state(id)&&!!piece(id);
- function onShelf(id){const e=piece(id),sh=document.getElementById('shelf');if(!e||!sh)return true;if(e.parentElement===sh)return true;const r=e.getBoundingClientRect(),s=sh.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;return cx>=s.left&&cx<=s.right&&cy>=s.top&&cy<=s.bottom}
+ function onShelf(id){
+   const e=piece(id),sh=document.getElementById('shelf'); if(!e||!sh)return true;
+   if(e.parentElement===sh)return true;
+   const r=e.getBoundingClientRect(),s=sh.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+   return cx>=s.left&&cx<=s.right&&cy>=s.top&&cy<=s.bottom;
+ }
  const usable=id=>exists(id)&&!onShelf(id);
- function paint(){document.querySelectorAll('.piece.apActive2185,.piece.apActive2187').forEach(e=>e.classList.remove('apActive2185','apActive2187'));if(owner!=null&&usable(owner))piece(owner)?.classList.add('apActive2187')}
+ function usableIds(){return [...document.querySelectorAll('.piece')].map(e=>+e.dataset.id).filter(usable)}
+ function paint(){
+   document.querySelectorAll('.piece.apActive2185,.piece.apActive2187,.piece.apActive2190').forEach(e=>e.classList.remove('apActive2185','apActive2187','apActive2190'));
+   if(owner!=null&&usable(owner))piece(owner)?.classList.add('apActive2190');
+ }
  function hide(){host.style.setProperty('display','none','important')}
  function show(){
    if(owner==null||!usable(owner)||innerHeight>innerWidth){hide();return}
-   const b=document.getElementById('board'),br=b?.getBoundingClientRect?.();
+   const br=document.getElementById('board')?.getBoundingClientRect?.();
    const sr=document.getElementById('sideScore')?.getBoundingClientRect?.();
-   const sh=document.getElementById('shelf')?.getBoundingClientRect?.();
-   const e=piece(owner),pr=e?.getBoundingClientRect?.();
    const hr=document.querySelector('header')?.getBoundingClientRect?.();
-   if(!br||!pr){hide();return}
-   /* v2.1.89: keep the board visible. Prefer a narrow vertical rail in the
-      empty lane beside the board. Only fall back to a compact horizontal bar
-      if neither side has enough room. */
-   const railW=92,railH=128,gap=6;
-   const rightLimit=sr?.left ?? (innerWidth-6);
-   const leftLimit=sh?.right ?? 6;
-   const rightSpace=rightLimit-br.right-gap;
-   const leftSpace=br.left-leftLimit-gap;
-   if(rightSpace>=railW){
-     host.classList.add('apRail2189');host.classList.remove('apRow2189');
-     let x=br.right+gap, y=Math.max((hr?.bottom??50)+4, Math.min(innerHeight-railH-6, pr.top+(pr.height-railH)/2));
-     host.style.setProperty('left',x+'px','important');host.style.setProperty('top',y+'px','important');
-   }else if(leftSpace>=railW){
-     host.classList.add('apRail2189');host.classList.remove('apRow2189');
-     let x=br.left-gap-railW, y=Math.max((hr?.bottom??50)+4, Math.min(innerHeight-railH-6, pr.top+(pr.height-railH)/2));
-     host.style.setProperty('left',x+'px','important');host.style.setProperty('top',y+'px','important');
-   }else{
-     host.classList.remove('apRail2189');host.classList.add('apRow2189');
-     const w=246,h=46;let x=pr.left+(pr.width-w)/2;
-     let y=pr.top-h-gap;if(y<(hr?.bottom??50)+4)y=pr.bottom+gap;
-     x=Math.max(6,Math.min(innerWidth-w-6,x));y=Math.max((hr?.bottom??50)+4,Math.min(innerHeight-h-6,y));
-     host.style.setProperty('left',x+'px','important');host.style.setProperty('top',y+'px','important');
-   }
-   host.style.setProperty('display','block','important');host.style.setProperty('visibility','visible','important')
+   if(!br){hide();return}
+   const w=156,h=176,gap=10;
+   /* Fixed control station: always beside the board on the right. Prefer the
+      open lane before SCORE. If that lane is narrow, overlap SCORE slightly,
+      never the puzzle cells unless the viewport leaves absolutely no room. */
+   let x=br.right+gap;
+   const maxX=innerWidth-w-6;
+   if(sr && sr.width>0 && x+w>sr.left-4) x=Math.min(maxX,Math.max(br.right+4,sr.left-w-4));
+   if(x+w>innerWidth-6) x=Math.max(6,br.right-w+18);
+   let y=Math.max((hr?.bottom??50)+6, br.top+8);
+   y=Math.min(innerHeight-h-6,y);
+   host.style.setProperty('left',Math.round(x)+'px','important');
+   host.style.setProperty('top',Math.round(y)+'px','important');
+   host.style.setProperty('display','block','important');
+   host.style.setProperty('visibility','visible','important');
  }
- function setOwner(id){id=Number(id);if(!usable(id))return false;owner=id;paint();show();return true}
- function clearOwner(){owner=null;pending=null;paint();hide()}
-
- /* v2.1.88: bind popup ownership to the game's authoritative DROP/HOME results.
-    This does not change dragging, tap gestures or board logic. It only observes
-    where the piece ended up after the existing game code has finished. */
- const gameDrop2188=drop;
- drop=function(id){
-   gameDrop2188(id);
-   const n=Number(id);
-   const settle=()=>{if(usable(n))setOwner(n);else if(owner===n)clearOwner()};
-   requestAnimationFrame(settle);
-   setTimeout(settle,60);
- };
- const gameHome2188=home;
- home=function(id,msg){
-   const n=Number(id);
-   gameHome2188(id,msg);
-   if(owner===n)clearOwner();
- };
-
+ function syncSelection(id){
+   try{sel=Number(id)}catch(_){}
+   document.querySelectorAll('.piece.sel').forEach(e=>e.classList.remove('sel'));
+   piece(id)?.classList.add('sel');
+ }
+ function setOwner(id){
+   id=Number(id); if(!usable(id))return false;
+   owner=id; syncSelection(id); paint(); show(); return true;
+ }
+ function fallbackOwner(exclude=null){
+   const list=usableIds().filter(id=>id!==Number(exclude));
+   if(list.length){setOwner(list[list.length-1]);return true}
+   owner=null;pending=null;paint();hide();return false;
+ }
  function targetId(ev){const e=ev.target?.closest?.('.piece');const id=Number(e?.dataset.id);return exists(id)?id:null}
- document.addEventListener('pointerdown',ev=>{if(ev.target?.closest?.('#apTools2187'))return;const id=targetId(ev);if(id==null)return;pending=id;if(usable(id)){ownerLostAt=0;setOwner(id)}},true);
- document.addEventListener('pointerup',ev=>{if(ev.target?.closest?.('#apTools2187'))return;const id=pending??targetId(ev);pending=null;if(id==null)return;const settle=()=>{if(usable(id)){ownerLostAt=0;setOwner(id)}else if(owner===id){ownerLostAt=ownerLostAt||Date.now()}};setTimeout(settle,50);setTimeout(settle,140)},true);
- /* Extra observer for Android: a plain tap on ANY placed/floating piece switches
-    popup ownership immediately. It never prevents the game's own touch logic. */
- document.addEventListener('touchstart',ev=>{if(ev.target?.closest?.('#apTools2187'))return;const id=targetId(ev);if(id!=null&&usable(id)){pending=id;ownerLostAt=0;setOwner(id)}},{capture:true,passive:true});
- function doTransform(id,kind){id=Number(id);if(owner!==id||!usable(id))return;let e=piece(id);if(!e)return;const r=e.getBoundingClientRect();try{if(state(id).place)clear(id)}catch(_){};(window.__piecePortal2116||document.body).append(e);state(id).c=kind==='r'?norm(state(id).c.map(q=>[-q[1],q[0]])):norm(state(id).c.map(q=>[-q[0],q[1]]));render(id);e=piece(id);if(!e)return;Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});paint();show();moves+=kind==='r'?.25:.5;const m=document.getElementById('moves');if(m)m.textContent=moves;try{buzz(kind==='r'?12:[10,25,10])}catch(_){}}
- function doShelf(id){id=Number(id);if(owner!==id||!usable(id))return;try{home(id,false)}catch(_){return}moves+=.5;const m=document.getElementById('moves');if(m)m.textContent=moves;clearOwner()}
- host.addEventListener('pointerdown',ev=>{const b=ev.target.closest('button');if(!b)return;ev.preventDefault();ev.stopPropagation();const id=Number(owner);if(!usable(id)){clearOwner();return}const a=b.dataset.a;if(a==='s')doShelf(id);else if(a==='r'||a==='f')doTransform(id,a)},true);
- host.addEventListener('pointerup',ev=>{ev.preventDefault();ev.stopPropagation()},true);host.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation()},true);
- setInterval(()=>{if(owner==null){hide();return}if(!usable(owner)){ownerLostAt=ownerLostAt||Date.now();if(Date.now()-ownerLostAt>650)clearOwner();return}ownerLostAt=0;paint();show()},180);
- addEventListener('orientationchange',()=>{hide();setTimeout(()=>{if(owner!=null&&usable(owner)){paint();show()}},300)});addEventListener('resize',()=>{if(owner!=null)setTimeout(show,100)});
- document.title='ANSSIPASI '+VERSION+' · SIDE-RAIL POPUP';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+
+ /* Observe the existing game outcomes only. Drag/tap mechanics themselves stay untouched. */
+ const gameDrop2190=drop;
+ drop=function(id){
+   gameDrop2190(id); const n=Number(id);
+   const settle=()=>{if(usable(n))setOwner(n);else if(owner===n)fallbackOwner(n)};
+   requestAnimationFrame(settle); setTimeout(settle,70);
+ };
+ const gameHome2190=home;
+ home=function(id,msg){
+   const n=Number(id); gameHome2190(id,msg);
+   if(owner===n)fallbackOwner(n); else {paint(); if(usableIds().length&&owner!=null)show();}
+ };
+
+ document.addEventListener('pointerdown',ev=>{
+   if(ev.target?.closest?.('#apTools2190'))return;
+   const id=targetId(ev); if(id==null)return; pending=id;
+   if(usable(id))setOwner(id);
+ },true);
+ document.addEventListener('pointerup',ev=>{
+   if(ev.target?.closest?.('#apTools2190'))return;
+   const id=pending??targetId(ev); pending=null; if(id==null)return;
+   setTimeout(()=>{if(usable(id))setOwner(id);else if(owner===id)fallbackOwner(id)},55);
+ },true);
+ document.addEventListener('touchstart',ev=>{
+   if(ev.target?.closest?.('#apTools2190'))return;
+   const id=targetId(ev); if(id!=null&&usable(id)){pending=id;setOwner(id)}
+ },{capture:true,passive:true});
+
+ function doTransform(id,kind){
+   id=Number(id); if(owner!==id||!usable(id))return;
+   let e=piece(id); if(!e)return; const r=e.getBoundingClientRect();
+   try{if(state(id).place)clear(id)}catch(_){}
+   (window.__piecePortal2116||document.body).append(e);
+   state(id).c=kind==='r'?norm(state(id).c.map(q=>[-q[1],q[0]])):norm(state(id).c.map(q=>[-q[0],q[1]]));
+   render(id); e=piece(id); if(!e)return;
+   Object.assign(e.style,{position:'fixed',left:r.left+'px',top:r.top+'px',transform:'scale(1)',zIndex:1000});
+   syncSelection(id);paint();show();
+   moves+=kind==='r'?.25:.5;const m=document.getElementById('moves');if(m)m.textContent=moves;
+   try{buzz(kind==='r'?12:[10,25,10])}catch(_){}
+ }
+ function doShelf(id){
+   id=Number(id); if(owner!==id||!usable(id))return;
+   try{home(id,false)}catch(_){return}
+   moves+=.5;const m=document.getElementById('moves');if(m)m.textContent=moves;
+   fallbackOwner(id);
+ }
+ host.addEventListener('pointerdown',ev=>{
+   const b=ev.target.closest('button');if(!b)return;
+   ev.preventDefault();ev.stopPropagation();const id=Number(owner);
+   if(!usable(id)){fallbackOwner(id);return}
+   const a=b.dataset.a;if(a==='s')doShelf(id);else if(a==='r'||a==='f')doTransform(id,a);
+ },true);
+ host.addEventListener('pointerup',ev=>{ev.preventDefault();ev.stopPropagation()},true);
+ host.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation()},true);
+
+ setInterval(()=>{
+   const list=usableIds();
+   if(!list.length){owner=null;paint();hide();return}
+   if(owner==null||!usable(owner)){setOwner(list[list.length-1]);return}
+   paint();show();
+ },220);
+ addEventListener('orientationchange',()=>{hide();setTimeout(()=>{const list=usableIds();if(list.length){if(owner==null||!usable(owner))owner=list[list.length-1];syncSelection(owner);paint();show()}},320)});
+ addEventListener('resize',()=>{if(owner!=null)setTimeout(show,100)});
+ document.title='ANSSIPASI '+VERSION+' · FIXED RIGHT CONTROLS';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
