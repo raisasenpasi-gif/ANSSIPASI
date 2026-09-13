@@ -10597,7 +10597,7 @@ body.apBoardTransition #tools{
   root.innerHTML=`
     <style>
       *{box-sizing:border-box}
-      .bar{height:56px;display:flex;gap:8px;align-items:center;padding:6px;background:#fff;border:1px solid #eab8ca;border-radius:12px;box-shadow:0 5px 16px #56324438;font-family:Arial,sans-serif}
+      .bar{height:56px;display:flex;gap:8px;align-items:center;padding:5px;background:#fff;border:1px solid #eab8ca;border-radius:12px;box-shadow:0 5px 16px #56324438;font-family:Arial,sans-serif}
       button{height:42px;border:0;border-radius:10px;padding:0 15px;background:#f6ccdc;color:#5c3b49;font-size:12px;font-weight:900;white-space:nowrap;touch-action:manipulation}
       button:active{transform:scale(.96)}
     </style>
@@ -10878,13 +10878,14 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.91 COMPACT UPPER-RIGHT PIECE CONTROL -->
+<!-- ANSSIPASI v2.1.92 SMALL UPPER-RIGHT PIECE CONTROL -->
 <style>
 #apTools2185,#apTools2187{display:none!important;visibility:hidden!important;pointer-events:none!important}
-#apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important;width:128px!important}
-#apTools2190 .apBar2190{display:flex;flex-direction:column;gap:5px;align-items:stretch;padding:6px;background:#fff;border:1px solid #eab8ca;border-radius:13px;box-shadow:0 6px 16px #56324436;font-family:Arial,sans-serif}#apTools2190 .apTitle2191{text-align:center;font-size:10px;line-height:15px;font-weight:900;color:#8a5269;letter-spacing:.35px;white-space:nowrap}
-#apTools2190 button{border:0;border-radius:9px;background:#f6ccdc;color:#5c3b49;font-size:11px;font-weight:900;white-space:nowrap;touch-action:manipulation;height:36px;padding:0 6px}
-@media (orientation:portrait){#apTools2190{display:none!important}}
+#apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important;width:104px!important}
+#apTools2190 .apBar2190{display:flex;flex-direction:column;gap:4px;align-items:stretch;padding:5px;background:#fff;border:1px solid #eab8ca;border-radius:11px;box-shadow:0 5px 14px #56324430;font-family:Arial,sans-serif}#apTools2190 .apTitle2191{display:none}
+#apTools2190 button{border:0;border-radius:9px;background:#f6ccdc;color:#5c3b49;font-size:9.5px;font-weight:900;white-space:nowrap;touch-action:manipulation;height:30px;padding:0 4px}
+#apPieceControlLabel2192{position:fixed;display:none;z-index:2147483646;padding:3px 7px;border-radius:8px;background:#fff7fa;border:1px solid #efc8d7;color:#8a5269;font:900 9px/1 Arial;letter-spacing:.35px;white-space:nowrap;pointer-events:none}
+@media (orientation:portrait){#apTools2190,#apPieceControlLabel2192{display:none!important}}
 /* v2.1.90: only the popup owner is allowed to glow. Historical .sel remains
    available to the game logic, but its old orange filter is visually neutralized. */
 .piece.sel{filter:drop-shadow(0 4px 4px #5a2e4666)!important}
@@ -10894,11 +10895,12 @@ body.apBoardTransition #tools{
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.91'; let owner=null,pending=null;
+ const VERSION='v2.1.92'; let owner=null,pending=null;
  document.querySelectorAll('#apTools2185,#apTools2187').forEach(n=>n.remove());
  const host=document.createElement('div'); host.id='apTools2190';
  host.innerHTML='<div class="apBar2190"><div class="apTitle2191">PIECE CONTROL</div><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
  document.body.appendChild(host);
+ const label=document.createElement('div'); label.id='apPieceControlLabel2192'; label.textContent='PIECE CONTROL'; document.body.appendChild(label);
  const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
  const state=id=>S?.[Number(id)];
  const exists=id=>Number.isFinite(Number(id))&&!!state(id)&&!!piece(id);
@@ -10914,29 +10916,30 @@ body.apBoardTransition #tools{
    document.querySelectorAll('.piece.apActive2185,.piece.apActive2187,.piece.apActive2190').forEach(e=>e.classList.remove('apActive2185','apActive2187','apActive2190'));
    if(owner!=null&&usable(owner))piece(owner)?.classList.add('apActive2190');
  }
- function hide(){host.style.setProperty('display','none','important')}
+ function hide(){host.style.setProperty('display','none','important');label.style.setProperty('display','none','important')}
  function show(){
    if(owner==null||!usable(owner)||innerHeight>innerWidth){hide();return}
    const br=document.getElementById('board')?.getBoundingClientRect?.();
    const sr=document.getElementById('sideScore')?.getBoundingClientRect?.();
    const hr=document.querySelector('header')?.getBoundingClientRect?.();
    if(!br){hide();return}
-   const w=128,h=143,gap=8;
-   /* Fixed control station: always beside the board on the right. Prefer the
-      open lane before SCORE. If that lane is narrow, overlap SCORE slightly,
-      never the puzzle cells unless the viewport leaves absolutely no room. */
-   /* v2.1.91: compact station in the upper-right lane. Anchor it against
-      SCORE instead of the board edge, leaving maximum free space for pieces
-      that protrude from the right side of the puzzle. */
+   const w=104,h=112,gap=10;
+   /* v2.1.92: a smaller fixed control station, pushed into the upper-right
+      lane as close to SCORE as possible. Keep the puzzle edge clear. */
    const maxX=innerWidth-w-6;
-   let x=sr && sr.width>0 ? sr.left-w-gap : br.right+gap;
+   let x=sr && sr.width>0 ? sr.left-w-4 : br.right+gap;
    x=Math.max(br.right+gap,Math.min(maxX,x));
-   let y=Math.max((hr?.bottom??50)+6, br.top-2);
+   let y=Math.max((hr?.bottom??50)+4, br.top-12);
    y=Math.min(innerHeight-h-6,y);
    host.style.setProperty('left',Math.round(x)+'px','important');
    host.style.setProperty('top',Math.round(y)+'px','important');
    host.style.setProperty('display','block','important');
    host.style.setProperty('visibility','visible','important');
+   /* Separate explanatory chip above the board, so the control itself stays compact. */
+   let lx=Math.min(innerWidth-92, br.right+8), ly=Math.max((hr?.bottom??50)+2, br.top-30);
+   label.style.setProperty('left',Math.round(lx)+'px','important');
+   label.style.setProperty('top',Math.round(ly)+'px','important');
+   label.style.setProperty('display','block','important');
  }
  function syncSelection(id){
    try{sel=Number(id)}catch(_){}
