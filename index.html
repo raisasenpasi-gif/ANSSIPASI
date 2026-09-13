@@ -9527,6 +9527,9 @@ html.pieceGestureActive #modeChooser button{pointer-events:none!important}
     for(const e of pieces){
       const id=+e.dataset.id;
       if(!Number.isFinite(id))continue;
+      /* v2.1.99: a FREEZE-locked piece is immutable and must never become
+         the global drag/tap target. */
+      if(S?.[id]?.locked)continue;
       /* v2.1.66: hit-test only the visible squares of the polyomino.
          The old parent rectangle also covered the shape's empty cells and could
          steal taps from a neighbouring piece, making the active piece feel locked. */
@@ -10910,7 +10913,7 @@ body.apBoardTransition #tools{
    const r=e.getBoundingClientRect(),s=sh.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
    return cx>=s.left&&cx<=s.right&&cy>=s.top&&cy<=s.bottom;
  }
- const usable=id=>exists(id)&&!onShelf(id);
+ const usable=id=>exists(id)&&!onShelf(id)&&!state(id)?.locked;
  function usableIds(){return [...document.querySelectorAll('.piece')].map(e=>+e.dataset.id).filter(usable)}
  function paint(){
    document.querySelectorAll('.piece.apActive2185,.piece.apActive2187,.piece.apActive2190').forEach(e=>e.classList.remove('apActive2185','apActive2187','apActive2190'));
@@ -11070,185 +11073,220 @@ body.apBoardTransition #tools{
 })();
 </script>
 
-
-<!-- ANSSIPASI v2.1.98 FULL FREEZE RESTORE + VIEW CORRECT PC HIDE -->
+<!-- ANSSIPASI v2.1.99 UNIVERSAL FREEZE + VIEW CORRECT CLEAN -->
 <style>
-/* VIEW CORRECT is a read-only answer view. PIECE CONTROL must not appear there. */
+/* Read-only answer mode never shows PIECE CONTROL or an active glow. */
+body.apViewCorrect #apTools2190,
 body.v194Answer #apTools2190,
 body.v215Answer #apTools2190{display:none!important;visibility:hidden!important}
+body.apViewCorrect .piece.apActive2190,
 body.v194Answer .piece.apActive2190,
 body.v215Answer .piece.apActive2190{filter:drop-shadow(0 4px 4px #5a2e4666)!important}
+body.apViewCorrect .piece.apActive2190 .block,
 body.v194Answer .piece.apActive2190 .block,
 body.v215Answer .piece.apActive2190 .block{box-shadow:none!important}
+/* FREEZE means frozen: no historical input layer may pick the piece up. */
+.piece.apFreezeLocked2199{pointer-events:none!important;filter:drop-shadow(0 0 8px #53a8dc)!important}
+.piece.apFreezeLocked2199 .block{box-shadow:inset 0 0 0 3px #e9f7ff!important}
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.98';
+ const VERSION='v2.1.99';
  const freezeTop=document.getElementById('freezeTop');
  const chooser=document.getElementById('freezeChooser');
  const wait=document.getElementById('freezeWait');
  const countdown=document.getElementById('freezeCountdown');
  const nextConfirm=document.getElementById('nextConfirm');
- const nextFreeze=document.getElementById('nextFreeze');
- let fullFreezeUsed=false, fullFreezeBusy=false;
+ let freezeUsed2199=false, freezeBusy2199=false;
 
- function isFull(){
-   const f=document.getElementById('fullBtn'),j=document.getElementById('jumboBtn'),p=document.getElementById('partialBtn');
-   if(j?.classList.contains('on')||p?.classList.contains('on')) return false;
-   return !!f?.classList.contains('on');
+ const PARTIAL_CELLS_2199=[
+   [1,0],[2,0],[3,0],
+   [1,1],[2,1],[3,1],[4,1],[5,1],
+   [1,2],[2,2],[3,2],[4,2],[5,2],
+   [0,3],[1,3],[2,3],[4,3],[5,3],
+   [4,4],[5,4]
+ ];
+ const groups2199={
+   easy:new Set([1,3,8,10,11]),
+   medium:new Set([4,6,7,9,17]),
+   hard:new Set([2,5,12,13,14,15,16,18,19,20])
+ };
+ function mode2199(){
+   if(document.body.classList.contains('partialMode')||document.getElementById('partialBtn')?.classList.contains('on'))return 'P';
+   if(document.getElementById('jumboBtn')?.classList.contains('on'))return 'J';
+   return 'F';
  }
- function answerMode(){
-   return window.__anssipasiAnswerMode===true ||
-          document.body.classList.contains('v194Answer') ||
-          document.body.classList.contains('v215Answer');
+ function target2199(){
+   const m=mode2199();
+   if(m==='P')return PARTIAL_CELLS_2199.map(q=>[...q]);
+   const w=m==='J'?7:6,h=m==='J'?7:5,a=[];
+   for(let y=0;y<h;y++)for(let x=0;x<w;x++)a.push([x,y]);
+   return a;
  }
- function hidePCForAnswer(){
-   if(!answerMode()) return;
-   const h=document.getElementById('apTools2190');
-   if(h) h.style.setProperty('display','none','important');
-   document.querySelectorAll('.piece.apActive2190').forEach(e=>e.classList.remove('apActive2190'));
- }
- setInterval(hidePCForAnswer,60);
-
- function nrm(a){
+ function norm2199(a){
    const X=Math.min(...a.map(q=>q[0])),Y=Math.min(...a.map(q=>q[1]));
-   return a.map(q=>[q[0]-X,q[1]-Y]);
+   return a.map(([x,y])=>[x-X,y-Y]);
  }
- function variants(cells){
+ function variants2199(cells){
    const out=[],seen=new Set();
-   for(let f=0;f<2;f++) for(let r=0;r<4;r++){
+   for(let f=0;f<2;f++)for(let r=0;r<4;r++){
      let a=cells.map(([x,y])=>[x,y]);
      if(f)a=a.map(([x,y])=>[-x,y]);
      for(let k=0;k<r;k++)a=a.map(([x,y])=>[-y,x]);
-     a=nrm(a).sort((u,v)=>u[1]-v[1]||u[0]-v[0]);
+     a=norm2199(a).sort((u,v)=>u[1]-v[1]||u[0]-v[0]);
      const key=a.map(q=>q.join(',')).join(';');
      if(!seen.has(key)){seen.add(key);out.push(a)}
    }
    return out;
  }
- function solveFullCurrent(){
-   if(!isFull())return null;
-   const used=new Set(),fixed=new Set(),solution={};
-   for(const id of ids){
-     const st=S[id]; if(!st?.place)continue;
-     for(const [dx,dy] of st.c){
-       const x=st.place.x+dx,y=st.place.y+dy,k=x+','+y;
-       if(x<0||x>=6||y<0||y>=5||used.has(k))return null;
-       used.add(k); fixed.add(Number(id));
-     }
-   }
-   const left=ids.map(Number).filter(id=>!fixed.has(id));
+ function solve2199(){
+   const target=target2199(), targetSet=new Set(target.map(q=>q.join(',')));
+   const currentIds=(window.ids||[]).map(Number);
    const cand={};
-   for(const id of left){
+   for(const id of currentIds){
      const list=[];
-     for(const sh of variants(P[id])){
-       const w=Math.max(...sh.map(q=>q[0]))+1,h=Math.max(...sh.map(q=>q[1]))+1;
-       for(let y=0;y<=5-h;y++)for(let x=0;x<=6-w;x++){
+     for(const sh of variants2199(P[id])){
+       const maxX=Math.max(...sh.map(q=>q[0])),maxY=Math.max(...sh.map(q=>q[1]));
+       for(let y=0;y<=7-maxY;y++)for(let x=0;x<=7-maxX;x++){
          const cells=sh.map(([dx,dy])=>[x+dx,y+dy]);
-         if(cells.every(([cx,cy])=>!used.has(cx+','+cy)))list.push({id,c:sh,x,y,cells});
+         if(cells.every(([cx,cy])=>targetSet.has(cx+','+cy)))list.push({id,c:sh,x,y,cells});
        }
      }
-     if(!list.length)return null;
      cand[id]=list;
+     if(!list.length)return null;
    }
-   function rec(rem){
-     if(!rem.length)return used.size===30;
-     let best=null,list=null;
-     for(const id of rem){
-       const ok=cand[id].filter(p=>p.cells.every(([x,y])=>!used.has(x+','+y)));
-       if(!ok.length)return false;
-       if(!list||ok.length<list.length){best=id;list=ok}
+   const used=new Set(),sol={};
+   function rec(left){
+     if(!left.length)return used.size===targetSet.size;
+     let best=null,bestList=null;
+     for(const id of left){
+       const list=cand[id].filter(pl=>pl.cells.every(([x,y])=>!used.has(x+','+y)));
+       if(!list.length)return false;
+       if(!bestList||list.length<bestList.length){best=id;bestList=list}
      }
-     const next=rem.filter(id=>id!==best);
-     for(const pl of list){
-       pl.cells.forEach(([x,y])=>used.add(x+','+y)); solution[best]=pl;
-       if(rec(next))return true;
-       delete solution[best]; pl.cells.forEach(([x,y])=>used.delete(x+','+y));
+     const rest=left.filter(x=>x!==best);
+     for(const pl of bestList){
+       pl.cells.forEach(([x,y])=>used.add(x+','+y));sol[best]=pl;
+       if(rec(rest))return true;
+       delete sol[best];pl.cells.forEach(([x,y])=>used.delete(x+','+y));
      }
      return false;
    }
-   return rec(left)?solution:null;
+   return rec(currentIds)?sol:null;
  }
- function candidate(level,sol){
-   const groups={easy:[1,3,8,10,11],medium:[4,6,7,9,17],hard:[2,5,12,13,14,15,16,18,19,20]};
-   const available=Object.keys(sol||{}).map(Number).filter(id=>!S[id]?.locked);
-   return available.find(id=>groups[level]?.includes(id)) ?? available[0] ?? null;
+ function choose2199(level,sol){
+   let arr=Object.keys(sol||{}).map(Number);
+   if(level&&groups2199[level]){
+     const preferred=arr.filter(id=>groups2199[level].has(id));
+     if(preferred.length)arr=preferred;
+   }
+   return arr[0]??null;
  }
- function markUsed(){
-   fullFreezeUsed=true;
+ function clearSelection2199(){
+   try{sel=null;drag=null;pendingPieceDrag=null}catch(_){ }
+   document.querySelectorAll('.piece').forEach(e=>e.classList.remove('sel','apActive2190','freezeLocked','freezeHidden','apFreezeLocked2199'));
+   const pc=document.getElementById('apTools2190');if(pc)pc.style.setProperty('display','none','important');
+ }
+ function returnOthers2199(lockId){
+   clearSelection2199();
+   for(const id of ids){
+     const st=S[id];if(!st)continue;
+     st.place=null;st.locked=false;
+     let e=document.querySelector(`.piece[data-id="${id}"]`);
+     if(!e){render(id);e=document.querySelector(`.piece[data-id="${id}"]`)}
+     if(Number(id)!==Number(lockId) && e){e.style.pointerEvents='';shelf.append(e)}
+   }
+   try{rebuildOcc();arrange()}catch(_){ }
+ }
+ function markUsed2199(){
+   freezeUsed2199=true;freezeBusy2199=false;
    if(freezeTop){freezeTop.disabled=true;freezeTop.classList.add('freezeUsed');freezeTop.textContent='❄ FREEZE ✓'}
  }
- function resetUsed(){
-   fullFreezeUsed=false;fullFreezeBusy=false;
+ function resetUsed2199(){
+   freezeUsed2199=false;freezeBusy2199=false;
    if(freezeTop){freezeTop.disabled=false;freezeTop.classList.remove('freezeUsed');freezeTop.textContent='❄ FREEZE';freezeTop.removeAttribute('aria-disabled')}
  }
- function lockFrom(level){
-   const sol=solveFullCurrent();
-   if(!sol){
-     if(typeof info!=='undefined')info.innerHTML='<b>❄ FREEZE</b><br>No valid continuation found from the current position.';
-     try{buzz([20,30,20])}catch(_){} fullFreezeBusy=false; return false;
-   }
-   const id=candidate(level,sol); if(id==null){fullFreezeBusy=false;return false}
-   const pl=sol[id],st=S[id]||(S[id]={});
-   st.c=pl.c.map(q=>[...q]);st.place={x:pl.x,y:pl.y};st.locked=true;
-   let e=document.querySelector(`.piece[data-id="${id}"]`); if(!e){render(id);e=document.querySelector(`.piece[data-id="${id}"]`)}
+ function lock2199(id,pl){
+   const st=S[id]||(S[id]={});st.c=pl.c.map(q=>[...q]);st.place={x:pl.x,y:pl.y};st.locked=true;
+   let e=document.querySelector(`.piece[data-id="${id}"]`);if(!e){render(id);e=document.querySelector(`.piece[data-id="${id}"]`)}
    board.append(e);render(id);e=document.querySelector(`.piece[data-id="${id}"]`);board.append(e);
    Object.assign(e.style,{position:'absolute',left:(pl.x*cell)+'px',top:(pl.y*cell)+'px',transform:'scale(1)',transformOrigin:'top left',zIndex:8,pointerEvents:'none'});
-   e.classList.remove('sel','apActive2190');e.classList.add('freezeLocked');
-   try{rebuildOcc()}catch(_){}
-   try{sel=null;drag=null}catch(_){}
-   document.querySelectorAll('.piece.apActive2190').forEach(x=>x.classList.remove('apActive2190'));
-   const pc=document.getElementById('apTools2190');if(pc)pc.style.setProperty('display','none','important');
-   markUsed(); fullFreezeBusy=false;
+   e.classList.remove('sel','apActive2190','freezeHidden');e.classList.add('freezeLocked','apFreezeLocked2199');
+   try{rebuildOcc()}catch(_){ }
+   markUsed2199();
    if(typeof info!=='undefined')info.innerHTML='<b>❄ FREEZE LOCKED</b><br>One piece is fixed in a correct position.';
-   try{buzz([24,30,60])}catch(_){}
-   return true;
+   try{buzz([24,30,60])}catch(_){ }
  }
- function startFullFreeze(level,counted){
-   if(fullFreezeUsed||fullFreezeBusy)return;
-   fullFreezeBusy=true;
-   if(!counted){lockFrom(level);return}
-   try{paused=true;pause.textContent='▶ RESUME'}catch(_){}
+ function execute2199(level){
+   const sol=solve2199();
+   if(!sol){freezeBusy2199=false;if(typeof info!=='undefined')info.innerHTML='<b>❄ FREEZE</b><br>No valid solution was found.';try{buzz([20,30,20])}catch(_){ }return false}
+   const id=choose2199(level,sol);if(id==null){freezeBusy2199=false;return false}
+   returnOthers2199(id);lock2199(id,sol[id]);return true;
+ }
+ function start2199(level,delay){
+   if(freezeUsed2199||freezeBusy2199||window.__anssipasiAnswerMode)return;
+   freezeBusy2199=true;
+   if(!delay){execute2199(level);return}
+   try{paused=true;pause.textContent='▶ RESUME'}catch(_){ }
+   if(wait)wait.style.display='flex';let n=5;if(countdown)countdown.textContent='5 s';
    const started=Date.now();
-   if(wait)wait.style.display='flex';
-   let remain=5; if(countdown)countdown.textContent='5 s';
    const iv=setInterval(()=>{
-     remain--;
-     if(countdown)countdown.textContent=remain+' s';
-     if(remain>0)return;
-     clearInterval(iv); if(wait)wait.style.display='none';
-     try{totalPaused+=Date.now()-started;paused=false;pause.textContent='Ⅱ PAUSE'}catch(_){}
-     lockFrom(level);
+     n--;if(countdown)countdown.textContent=n+' s';if(n>0)return;
+     clearInterval(iv);if(wait)wait.style.display='none';
+     try{totalPaused+=Date.now()-started;paused=false;pause.textContent='Ⅱ PAUSE'}catch(_){ }
+     execute2199(level);
    },1000);
  }
- function intercept(ev){ev.preventDefault();ev.stopPropagation();try{ev.stopImmediatePropagation()}catch(_){}}
+ function stop2199(ev){ev.preventDefault();ev.stopPropagation();try{ev.stopImmediatePropagation()}catch(_){ }}
 
- /* FULL top FREEZE owns the flow in this final patch. JUMBO/PARTIAL stay untouched. */
+ /* One authoritative FREEZE owner for FULL, JUMBO and PARTIAL. */
  document.addEventListener('pointerdown',ev=>{
-   const b=ev.target?.closest?.('#freezeTop'); if(!b||!isFull())return;
-   intercept(ev); if(fullFreezeUsed||fullFreezeBusy){try{buzz(15)}catch(_){};return}
+   const b=ev.target?.closest?.('#freezeTop');if(!b)return;
+   stop2199(ev);if(freezeUsed2199||freezeBusy2199){try{buzz(15)}catch(_){ }return}
    if(chooser)chooser.style.display='flex';
  },true);
- document.addEventListener('click',ev=>{const b=ev.target?.closest?.('#freezeTop');if(b&&isFull())intercept(ev)},true);
-
+ document.addEventListener('click',ev=>{if(ev.target?.closest?.('#freezeTop'))stop2199(ev)},true);
  document.addEventListener('pointerdown',ev=>{
-   const b=ev.target?.closest?.('[data-freeze-level]'); if(!b||!isFull()||!chooser||getComputedStyle(chooser).display==='none')return;
-   intercept(ev);chooser.style.display='none';startFullFreeze(b.dataset.freezeLevel,true);
+   const b=ev.target?.closest?.('[data-freeze-level]');
+   if(!b||!chooser||getComputedStyle(chooser).display==='none')return;
+   stop2199(ev);chooser.style.display='none';start2199(b.dataset.freezeLevel,true);
  },true);
- document.addEventListener('click',ev=>{const b=ev.target?.closest?.('[data-freeze-level]');if(b&&isFull())intercept(ev)},true);
+ document.addEventListener('click',ev=>{if(ev.target?.closest?.('[data-freeze-level]'))stop2199(ev)},true);
 
+ /* NEXT TASK -> FREEZE is the same on all boards and remains immediate. */
  document.addEventListener('pointerdown',ev=>{
-   const b=ev.target?.closest?.('#nextFreeze'); if(!b||!isFull())return;
-   intercept(ev);if(nextConfirm)nextConfirm.style.display='none';startFullFreeze('medium',false);
+   const b=ev.target?.closest?.('#nextFreeze');if(!b)return;
+   stop2199(ev);if(nextConfirm)nextConfirm.style.display='none';start2199(null,false);
  },true);
- document.addEventListener('click',ev=>{const b=ev.target?.closest?.('#nextFreeze');if(b&&isFull())intercept(ev)},true);
+ document.addEventListener('click',ev=>{if(ev.target?.closest?.('#nextFreeze'))stop2199(ev)},true);
 
- /* Fresh attempt/task makes FULL FREEZE available again. */
+ /* Reassert the frozen piece against all older drag/render layers. */
+ setInterval(()=>{
+   document.querySelectorAll('.piece.apFreezeLocked2199').forEach(e=>{
+     const id=+e.dataset.id,st=S?.[id];if(!st?.locked||!st.place)return;
+     if(e.parentElement!==board)board.append(e);
+     Object.assign(e.style,{position:'absolute',left:(st.place.x*cell)+'px',top:(st.place.y*cell)+'px',transform:'scale(1)',transformOrigin:'top left',zIndex:8,pointerEvents:'none'});
+     e.classList.remove('sel','apActive2190');e.classList.add('freezeLocked','apFreezeLocked2199');
+   });
+ },100);
+
+ /* Reset the single-use FREEZE state only when a fresh task/board begins. */
  document.addEventListener('pointerdown',ev=>{
-   if(ev.target?.closest?.('#topRedo,#redoTask,#nextRedo,#nextTop,#nextTask,#fullBtn,#jumboBtn,#partialBtn')) setTimeout(resetUsed,0);
+   if(ev.target?.closest?.('#topRedo,#redoTask,#nextRedo,#nextTop,#nextTask,#fullBtn,#jumboBtn,#partialBtn,#boardSessionGate button'))setTimeout(resetUsed2199,0);
  },true);
 
- document.title='ANSSIPASI '+VERSION+' · FULL FREEZE + VIEW CORRECT CLEAN';
+ /* VIEW CORRECT is always clean on every board. */
+ setInterval(()=>{
+   const tag=document.getElementById('answerModeTag');
+   const answer=window.__anssipasiAnswerMode===true || document.body.classList.contains('v194Answer') || document.body.classList.contains('v215Answer') || (tag&&getComputedStyle(tag).display!=='none');
+   document.body.classList.toggle('apViewCorrect',!!answer);
+   if(answer){
+     const pc=document.getElementById('apTools2190');if(pc)pc.style.setProperty('display','none','important');
+     document.querySelectorAll('.piece.apActive2190').forEach(e=>e.classList.remove('apActive2190'));
+   }
+ },60);
+
+ document.title='ANSSIPASI '+VERSION+' · UNIVERSAL FREEZE';
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
