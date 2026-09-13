@@ -10872,13 +10872,13 @@ body.apBoardTransition #tools{
   addEventListener('orientationchange',()=>{hide();setTimeout(()=>{if(owner!=null&&usable(owner)){paint();show();}},260);});
   addEventListener('resize',()=>{if(owner!=null)setTimeout(show,90);});
 
-  document.title='ANSSIPASI '+VERSION+' · FIXED TOP POPUP';
+  document.title='ANSSIPASI '+VERSION+' · BOARD-AWARE PIECE CONTROL';
   document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
 
 
-<!-- ANSSIPASI v2.1.94 STABLE PIECE CONTROL EDGE -->
+<!-- ANSSIPASI v2.1.95 BOARD-AWARE PIECE CONTROL -->
 <style>
 #apTools2185,#apTools2187{display:none!important;visibility:hidden!important;pointer-events:none!important}
 #apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:none!important;width:86px!important}
@@ -10895,7 +10895,7 @@ body.apBoardTransition #tools{
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.94'; let owner=null,pending=null;
+ const VERSION='v2.1.95'; let owner=null,pending=null;
  document.querySelectorAll('#apTools2185,#apTools2187').forEach(n=>n.remove());
  const host=document.createElement('div'); host.id='apTools2190';
  host.innerHTML='<div class="apBar2190"><div class="apTitle2191">PIECE CONTROL</div><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
@@ -10924,12 +10924,13 @@ body.apBoardTransition #tools{
    const hr=document.querySelector('header')?.getBoundingClientRect?.();
    if(!br){hide();return}
    const w=86,h=94,gap=10;
-   /* v2.1.94: same accepted compact placement. The panel shell is touch-transparent;
-      only the three actual buttons receive pointer input. This prevents a piece
-      passing close to the panel from colliding with the control surface. */
+   /* v2.1.95: preserve the accepted compact PARTIAL placement and apply the
+      same board-aware lane rule to FULL and JUMBO. The panel stays between
+      the current board and LIVE SCORE whenever that lane exists. */
    const maxX=innerWidth-w-6;
-   let x=sr && sr.width>0 ? sr.left-w-4 : br.right+gap;
-   x=Math.max(br.right+gap,Math.min(maxX,x));
+   const laneRight=(sr && sr.width>0) ? sr.left-4 : maxX;
+   let x=Math.min(laneRight-w,maxX);
+   x=Math.max(br.right+gap,x);
    const bwr=document.getElementById('bw')?.getBoundingClientRect?.();
    let y=bwr ? bwr.top+4 : Math.max((hr?.bottom??50)+4,br.top-12);
    y=Math.min(innerHeight-h-6,y);
