@@ -11024,3 +11024,45 @@ body.apBoardTransition #tools{
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+
+<!-- ANSSIPASI v2.1.96 MODAL SHIELD + NONOWNER FLICKER FIX -->
+<style>
+/* Keep task/session cards above every dragged piece during board changes. */
+#boardSessionGate,#taskCard,#solvedCard,#nextConfirm,#freezeChooser,#freezeWait,#correctCard,#sessionComplete,#quitConfirm,#stopConfirm228,#boardSwitchShield211{
+  z-index:2147483647!important;
+}
+/* A historical SAFE AREA pulse must never make a non-active board piece look selected. */
+.piece.safeFlash:not(.apActive2190){animation:none!important}
+</style>
+<script>
+(()=>{
+ const VERSION='v2.1.96';
+ const host=()=>document.getElementById('apTools2190');
+ const activeOverlays=['boardSessionGate','taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait','correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211'];
+ function shown(el){
+   if(!el)return false;
+   const cs=getComputedStyle(el);
+   return cs.display!=='none' && cs.visibility!=='hidden' && cs.opacity!=='0';
+ }
+ function overlayOpen(){return activeOverlays.some(id=>shown(document.getElementById(id)))}
+ function shield(){
+   const h=host(); if(!h)return;
+   if(overlayOpen()){
+     h.style.setProperty('display','none','important');
+     document.querySelectorAll('.piece.apActive2190').forEach(e=>e.classList.remove('apActive2190'));
+   }
+ }
+ /* Hide immediately when a board/session transition begins. */
+ document.addEventListener('pointerdown',ev=>{
+   if(ev.target?.closest?.('#fullBtn,#jumboBtn,#partialBtn,#boardSessionGate button,#taskCard button')){
+     const h=host(); if(h)h.style.setProperty('display','none','important');
+   }
+ },true);
+ const mo=new MutationObserver(()=>requestAnimationFrame(shield));
+ activeOverlays.forEach(id=>{const e=document.getElementById(id);if(e)mo.observe(e,{attributes:true,attributeFilter:['style','class']})});
+ setInterval(shield,80);
+ document.title='ANSSIPASI '+VERSION+' · STABLE PIECE CONTROL';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
