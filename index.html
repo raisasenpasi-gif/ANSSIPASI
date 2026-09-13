@@ -10895,7 +10895,7 @@ body.apBoardTransition #tools{
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.95'; let owner=null,pending=null;
+ const VERSION='v2.1.97'; let owner=null,pending=null;
  document.querySelectorAll('#apTools2185,#apTools2187').forEach(n=>n.remove());
  const host=document.createElement('div'); host.id='apTools2190';
  host.innerHTML='<div class="apBar2190"><div class="apTitle2191">PIECE CONTROL</div><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
@@ -10918,7 +10918,10 @@ body.apBoardTransition #tools{
  }
  function hide(){host.style.setProperty('display','none','important');label.style.setProperty('display','none','important')}
  function show(){
-   if(owner==null||!usable(owner)||innerHeight>innerWidth){hide();return}
+   /* v2.1.97: PIECE CONTROL must never be painted over a task/session card. */
+   const modalIds=['boardSessionGate','taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait','correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211'];
+   const modalOpen=modalIds.some(id=>{const el=document.getElementById(id);if(!el)return false;const cs=getComputedStyle(el);return cs.display!=='none'&&cs.visibility!=='hidden'&&cs.opacity!=='0'});
+   if(modalOpen||owner==null||!usable(owner)||innerHeight>innerWidth){hide();return}
    const br=document.getElementById('board')?.getBoundingClientRect?.();
    const sr=document.getElementById('sideScore')?.getBoundingClientRect?.();
    const hr=document.querySelector('header')?.getBoundingClientRect?.();
@@ -11026,18 +11029,18 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.96 MODAL SHIELD + NONOWNER FLICKER FIX -->
+<!-- ANSSIPASI v2.1.97 HARD MODAL LOCK + NO SAFEFLASH -->
 <style>
 /* Keep task/session cards above every dragged piece during board changes. */
 #boardSessionGate,#taskCard,#solvedCard,#nextConfirm,#freezeChooser,#freezeWait,#correctCard,#sessionComplete,#quitConfirm,#stopConfirm228,#boardSwitchShield211{
   z-index:2147483647!important;
 }
 /* A historical SAFE AREA pulse must never make a non-active board piece look selected. */
-.piece.safeFlash:not(.apActive2190){animation:none!important}
+.piece.safeFlash{animation:none!important}
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.96';
+ const VERSION='v2.1.97';
  const host=()=>document.getElementById('apTools2190');
  const activeOverlays=['boardSessionGate','taskCard','solvedCard','nextConfirm','freezeChooser','freezeWait','correctCard','sessionComplete','quitConfirm','stopConfirm228','boardSwitchShield211'];
  function shown(el){
