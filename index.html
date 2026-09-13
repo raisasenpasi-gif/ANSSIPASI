@@ -10878,12 +10878,12 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.92 SMALL UPPER-RIGHT PIECE CONTROL -->
+<!-- ANSSIPASI v2.1.93 COMPACT ALIGNED PIECE CONTROL -->
 <style>
 #apTools2185,#apTools2187{display:none!important;visibility:hidden!important;pointer-events:none!important}
-#apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important;width:104px!important}
-#apTools2190 .apBar2190{display:flex;flex-direction:column;gap:4px;align-items:stretch;padding:5px;background:#fff;border:1px solid #eab8ca;border-radius:11px;box-shadow:0 5px 14px #56324430;font-family:Arial,sans-serif}#apTools2190 .apTitle2191{display:none}
-#apTools2190 button{border:0;border-radius:9px;background:#f6ccdc;color:#5c3b49;font-size:9.5px;font-weight:900;white-space:nowrap;touch-action:manipulation;height:30px;padding:0 4px}
+#apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important;width:86px!important}
+#apTools2190 .apBar2190{display:flex;flex-direction:column;gap:3px;align-items:stretch;padding:4px;background:#fff;border:1px solid #eab8ca;border-radius:10px;box-shadow:0 4px 11px #56324430;font-family:Arial,sans-serif}#apTools2190 .apTitle2191{display:block;text-align:center;padding:2px 1px 1px;color:#8a5269;font-size:7.5px;line-height:1;font-weight:900;letter-spacing:.25px;white-space:nowrap}
+#apTools2190 button{border:0;border-radius:9px;background:#f6ccdc;color:#5c3b49;font-size:8px;font-weight:900;white-space:nowrap;touch-action:manipulation;height:24px;padding:0 3px}
 #apPieceControlLabel2192{position:fixed;display:none;z-index:2147483646;padding:3px 7px;border-radius:8px;background:#fff7fa;border:1px solid #efc8d7;color:#8a5269;font:900 9px/1 Arial;letter-spacing:.35px;white-space:nowrap;pointer-events:none}
 @media (orientation:portrait){#apTools2190,#apPieceControlLabel2192{display:none!important}}
 /* v2.1.90: only the popup owner is allowed to glow. Historical .sel remains
@@ -10895,7 +10895,7 @@ body.apBoardTransition #tools{
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.92'; let owner=null,pending=null;
+ const VERSION='v2.1.93'; let owner=null,pending=null;
  document.querySelectorAll('#apTools2185,#apTools2187').forEach(n=>n.remove());
  const host=document.createElement('div'); host.id='apTools2190';
  host.innerHTML='<div class="apBar2190"><div class="apTitle2191">PIECE CONTROL</div><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
@@ -10923,23 +10923,21 @@ body.apBoardTransition #tools{
    const sr=document.getElementById('sideScore')?.getBoundingClientRect?.();
    const hr=document.querySelector('header')?.getBoundingClientRect?.();
    if(!br){hide();return}
-   const w=104,h=112,gap=10;
-   /* v2.1.92: a smaller fixed control station, pushed into the upper-right
-      lane as close to SCORE as possible. Keep the puzzle edge clear. */
+   const w=86,h=94,gap=10;
+   /* v2.1.93: compact fixed control station. Its top aligns with the BOARD
+      selector on the left, while remaining larger than the board selector. */
    const maxX=innerWidth-w-6;
    let x=sr && sr.width>0 ? sr.left-w-4 : br.right+gap;
    x=Math.max(br.right+gap,Math.min(maxX,x));
-   let y=Math.max((hr?.bottom??50)+4, br.top-12);
+   const bwr=document.getElementById('bw')?.getBoundingClientRect?.();
+   let y=bwr ? bwr.top+4 : Math.max((hr?.bottom??50)+4,br.top-12);
    y=Math.min(innerHeight-h-6,y);
    host.style.setProperty('left',Math.round(x)+'px','important');
    host.style.setProperty('top',Math.round(y)+'px','important');
    host.style.setProperty('display','block','important');
    host.style.setProperty('visibility','visible','important');
    /* Separate explanatory chip above the board, so the control itself stays compact. */
-   let lx=Math.min(innerWidth-92, br.right+8), ly=Math.max((hr?.bottom??50)+2, br.top-30);
-   label.style.setProperty('left',Math.round(lx)+'px','important');
-   label.style.setProperty('top',Math.round(ly)+'px','important');
-   label.style.setProperty('display','block','important');
+   label.style.setProperty('display','none','important');
  }
  function syncSelection(id){
    try{sel=Number(id)}catch(_){}
@@ -11020,7 +11018,7 @@ body.apBoardTransition #tools{
  },220);
  addEventListener('orientationchange',()=>{hide();setTimeout(()=>{const list=usableIds();if(list.length){if(owner==null||!usable(owner))owner=list[list.length-1];syncSelection(owner);paint();show()}},320)});
  addEventListener('resize',()=>{if(owner!=null)setTimeout(show,100)});
- document.title='ANSSIPASI '+VERSION+' · PIECE CONTROL';
+ document.title='ANSSIPASI '+VERSION+' · COMPACT PIECE CONTROL';
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
