@@ -10878,7 +10878,7 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.87 VISIBLE LIGHT-DOM POPUP -->
+<!-- ANSSIPASI v2.1.88 DROP-LOCKED POPUP OWNER -->
 <style>
 #apTools2185{display:none!important;visibility:hidden!important;pointer-events:none!important}
 #apTools2187{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;width:306px!important;height:56px!important;pointer-events:auto!important}
@@ -10889,7 +10889,7 @@ body.apBoardTransition #tools{
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.87'; let owner=null,pending=null;
+ const VERSION='v2.1.88'; let owner=null,pending=null;
  const old=document.getElementById('apTools2185'); if(old)old.remove();
  const host=document.createElement('div'); host.id='apTools2187';
  host.innerHTML='<div class="apBar2187"><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
@@ -10904,6 +10904,25 @@ body.apBoardTransition #tools{
  function show(){if(owner==null||!usable(owner)||innerHeight>innerWidth){hide();return}const b=document.getElementById('board'),br=b?.getBoundingClientRect?.(),hr=document.querySelector('header')?.getBoundingClientRect?.();if(!br){hide();return}const w=306,h=56;let x=br.left+(br.width-w)/2,y=(hr?.bottom??50)+4;x=Math.max(6,Math.min(innerWidth-w-6,x));y=Math.max(6,Math.min(innerHeight-h-6,y));host.style.setProperty('left',x+'px','important');host.style.setProperty('top',y+'px','important');host.style.setProperty('display','block','important');host.style.setProperty('visibility','visible','important')}
  function setOwner(id){id=Number(id);if(!usable(id))return false;owner=id;paint();show();return true}
  function clearOwner(){owner=null;pending=null;paint();hide()}
+
+ /* v2.1.88: bind popup ownership to the game's authoritative DROP/HOME results.
+    This does not change dragging, tap gestures or board logic. It only observes
+    where the piece ended up after the existing game code has finished. */
+ const gameDrop2188=drop;
+ drop=function(id){
+   gameDrop2188(id);
+   const n=Number(id);
+   const settle=()=>{if(usable(n))setOwner(n);else if(owner===n)clearOwner()};
+   requestAnimationFrame(settle);
+   setTimeout(settle,60);
+ };
+ const gameHome2188=home;
+ home=function(id,msg){
+   const n=Number(id);
+   gameHome2188(id,msg);
+   if(owner===n)clearOwner();
+ };
+
  function targetId(ev){const e=ev.target?.closest?.('.piece');const id=Number(e?.dataset.id);return exists(id)?id:null}
  document.addEventListener('pointerdown',ev=>{if(ev.target?.closest?.('#apTools2187'))return;const id=targetId(ev);if(id==null)return;pending=id;if(usable(id))setOwner(id)},true);
  document.addEventListener('pointerup',ev=>{if(ev.target?.closest?.('#apTools2187'))return;const id=pending??targetId(ev);pending=null;if(id==null)return;const settle=()=>{if(usable(id))setOwner(id);else if(owner===id)clearOwner()};setTimeout(settle,80);setTimeout(settle,180)},true);
@@ -10913,6 +10932,6 @@ body.apBoardTransition #tools{
  host.addEventListener('pointerup',ev=>{ev.preventDefault();ev.stopPropagation()},true);host.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation()},true);
  setInterval(()=>{if(owner==null){hide();return}if(!usable(owner)){clearOwner();return}paint();show()},180);
  addEventListener('orientationchange',()=>{hide();setTimeout(()=>{if(owner!=null&&usable(owner)){paint();show()}},300)});addEventListener('resize',()=>{if(owner!=null)setTimeout(show,100)});
- document.title='ANSSIPASI '+VERSION+' · VISIBLE POPUP';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+ document.title='ANSSIPASI '+VERSION+' · DROP-LOCKED POPUP';document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
