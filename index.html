@@ -10878,12 +10878,12 @@ body.apBoardTransition #tools{
 </script>
 
 
-<!-- ANSSIPASI v2.1.90 FIXED RIGHT CONTROL PANEL + SINGLE ACTIVE PIECE -->
+<!-- ANSSIPASI v2.1.91 COMPACT UPPER-RIGHT PIECE CONTROL -->
 <style>
 #apTools2185,#apTools2187{display:none!important;visibility:hidden!important;pointer-events:none!important}
-#apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important;width:156px!important}
-#apTools2190 .apBar2190{display:flex;flex-direction:column;gap:7px;align-items:stretch;padding:8px;background:#fff;border:1px solid #eab8ca;border-radius:15px;box-shadow:0 7px 20px #56324442;font-family:Arial,sans-serif}
-#apTools2190 button{border:0;border-radius:11px;background:#f6ccdc;color:#5c3b49;font-size:12px;font-weight:900;white-space:nowrap;touch-action:manipulation;height:46px;padding:0 8px}
+#apTools2190{position:fixed!important;display:none;visibility:visible!important;z-index:2147483647!important;pointer-events:auto!important;width:128px!important}
+#apTools2190 .apBar2190{display:flex;flex-direction:column;gap:5px;align-items:stretch;padding:6px;background:#fff;border:1px solid #eab8ca;border-radius:13px;box-shadow:0 6px 16px #56324436;font-family:Arial,sans-serif}#apTools2190 .apTitle2191{text-align:center;font-size:10px;line-height:15px;font-weight:900;color:#8a5269;letter-spacing:.35px;white-space:nowrap}
+#apTools2190 button{border:0;border-radius:9px;background:#f6ccdc;color:#5c3b49;font-size:11px;font-weight:900;white-space:nowrap;touch-action:manipulation;height:36px;padding:0 6px}
 @media (orientation:portrait){#apTools2190{display:none!important}}
 /* v2.1.90: only the popup owner is allowed to glow. Historical .sel remains
    available to the game logic, but its old orange filter is visually neutralized. */
@@ -10894,10 +10894,10 @@ body.apBoardTransition #tools{
 </style>
 <script>
 (()=>{
- const VERSION='v2.1.90'; let owner=null,pending=null;
+ const VERSION='v2.1.91'; let owner=null,pending=null;
  document.querySelectorAll('#apTools2185,#apTools2187').forEach(n=>n.remove());
  const host=document.createElement('div'); host.id='apTools2190';
- host.innerHTML='<div class="apBar2190"><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
+ host.innerHTML='<div class="apBar2190"><div class="apTitle2191">PIECE CONTROL</div><button data-a="r">↻ ROTATE</button><button data-a="f">⇋ FLIP</button><button data-a="s">↩ SHELF</button></div>';
  document.body.appendChild(host);
  const piece=id=>document.querySelector(`.piece[data-id="${Number(id)}"]`);
  const state=id=>S?.[Number(id)];
@@ -10921,15 +10921,17 @@ body.apBoardTransition #tools{
    const sr=document.getElementById('sideScore')?.getBoundingClientRect?.();
    const hr=document.querySelector('header')?.getBoundingClientRect?.();
    if(!br){hide();return}
-   const w=156,h=176,gap=10;
+   const w=128,h=143,gap=8;
    /* Fixed control station: always beside the board on the right. Prefer the
       open lane before SCORE. If that lane is narrow, overlap SCORE slightly,
       never the puzzle cells unless the viewport leaves absolutely no room. */
-   let x=br.right+gap;
+   /* v2.1.91: compact station in the upper-right lane. Anchor it against
+      SCORE instead of the board edge, leaving maximum free space for pieces
+      that protrude from the right side of the puzzle. */
    const maxX=innerWidth-w-6;
-   if(sr && sr.width>0 && x+w>sr.left-4) x=Math.min(maxX,Math.max(br.right+4,sr.left-w-4));
-   if(x+w>innerWidth-6) x=Math.max(6,br.right-w+18);
-   let y=Math.max((hr?.bottom??50)+6, br.top+8);
+   let x=sr && sr.width>0 ? sr.left-w-gap : br.right+gap;
+   x=Math.max(br.right+gap,Math.min(maxX,x));
+   let y=Math.max((hr?.bottom??50)+6, br.top-2);
    y=Math.min(innerHeight-h-6,y);
    host.style.setProperty('left',Math.round(x)+'px','important');
    host.style.setProperty('top',Math.round(y)+'px','important');
@@ -11015,7 +11017,7 @@ body.apBoardTransition #tools{
  },220);
  addEventListener('orientationchange',()=>{hide();setTimeout(()=>{const list=usableIds();if(list.length){if(owner==null||!usable(owner))owner=list[list.length-1];syncSelection(owner);paint();show()}},320)});
  addEventListener('resize',()=>{if(owner!=null)setTimeout(show,100)});
- document.title='ANSSIPASI '+VERSION+' · FIXED RIGHT CONTROLS';
+ document.title='ANSSIPASI '+VERSION+' · PIECE CONTROL';
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
