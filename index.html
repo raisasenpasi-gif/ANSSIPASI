@@ -11208,6 +11208,7 @@ body.v215Answer .piece.apActive2190 .block{box-shadow:none!important}
  }
  function lock2199(id,pl){
    const st=S[id]||(S[id]={});st.c=pl.c.map(q=>[...q]);st.place={x:pl.x,y:pl.y};st.locked=true;
+   window.__apFreezeLatch2202={id:Number(id),c:st.c.map(q=>[...q]),place:{x:pl.x,y:pl.y}};
    let e=document.querySelector(`.piece[data-id="${id}"]`);if(!e){render(id);e=document.querySelector(`.piece[data-id="${id}"]`)}
    board.append(e);render(id);e=document.querySelector(`.piece[data-id="${id}"]`);board.append(e);
    Object.assign(e.style,{position:'absolute',left:(pl.x*cell)+'px',top:(pl.y*cell)+'px',transform:'scale(1)',transformOrigin:'top left',zIndex:8,pointerEvents:'none'});
@@ -11365,6 +11366,54 @@ body.apAnswer2200 .piece.apActive2190 .block{box-shadow:none!important}
 
  enforce2200();
  document.title='ANSSIPASI '+VERSION+' · FREEZE LOCKED';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
+
+
+<!-- ANSSIPASI v2.2.02 FREEZE LATCH AUTHORITY -->
+<style>
+.piece.apFreezeLatch2202,.piece.apFreezeLatch2202 *{pointer-events:none!important;touch-action:none!important}
+.piece.apFreezeLatch2202{filter:drop-shadow(0 0 8px #53a8dc)!important}
+.piece.apFreezeLatch2202 .block{box-shadow:inset 0 0 0 3px #e9f7ff!important}
+</style>
+<script>
+(()=>{
+ const VERSION='v2.2.02';
+ const top=document.getElementById('freezeTop');
+ let clearing=false;
+ function enforce(){
+   const f=window.__apFreezeLatch2202;if(!f||clearing)return;
+   const st=S?.[f.id];if(!st)return;
+   st.c=f.c.map(q=>[...q]);st.place={x:f.place.x,y:f.place.y};st.locked=true;
+   let all=[...document.querySelectorAll(`.piece[data-id="${f.id}"]`)];
+   if(!all.length){try{render(f.id)}catch(_){} all=[...document.querySelectorAll(`.piece[data-id="${f.id}"]`)]}
+   const e=all[0];
+   all.slice(1).forEach(n=>n.remove());
+   if(e){
+     if(e.parentElement!==board)board.append(e);
+     Object.assign(e.style,{position:'absolute',left:(f.place.x*cell)+'px',top:(f.place.y*cell)+'px',transform:'scale(1)',transformOrigin:'top left',zIndex:8,pointerEvents:'none'});
+     e.classList.remove('sel','apActive2190','freezeHidden');
+     e.classList.add('freezeLocked','apFreezeLocked2199','apFreezeLocked2200','apFreezeLatch2202');
+   }
+   try{rebuildOcc()}catch(_){}
+   if(top){top.disabled=true;top.classList.add('freezeUsed');top.textContent='❄ FREEZE ✓';top.setAttribute('aria-disabled','true')}
+ }
+ /* Block every input route by the latched id, even if an older layer clears CSS classes/state. */
+ ['pointerdown','pointerup','click','touchstart','touchend'].forEach(type=>document.addEventListener(type,ev=>{
+   const e=ev.target?.closest?.('.piece');const f=window.__apFreezeLatch2202;
+   if(!e||!f||Number(e.dataset.id)!==f.id)return;
+   ev.preventDefault();ev.stopPropagation();try{ev.stopImmediatePropagation()}catch(_){}
+ },true));
+ /* Clear only when a genuinely new attempt/board is requested. */
+ document.addEventListener('pointerdown',ev=>{
+   if(!ev.target?.closest?.('#topRedo,#redoTop,#nextRedo,#nextReally,#nextTop,#nextTask,#stopReally228,#fullBtn,#jumboBtn,#partialBtn,#boardSessionGate button,#taskCard button'))return;
+   clearing=true;window.__apFreezeLatch2202=null;
+   if(top){top.disabled=false;top.classList.remove('freezeUsed');top.textContent='❄ FREEZE';top.removeAttribute('aria-disabled')}
+   setTimeout(()=>{clearing=false},250);
+ },true);
+ setInterval(enforce,25);
+ document.title='ANSSIPASI '+VERSION+' · FREEZE LATCH';
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
