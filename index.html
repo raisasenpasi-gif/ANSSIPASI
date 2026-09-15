@@ -11141,7 +11141,7 @@ body.v215Answer .piece.apActive2190 .block{box-shadow:none!important}
  }
  function solve2199(){
    const target=target2199(), targetSet=new Set(target.map(q=>q.join(',')));
-   const currentIds=(window.ids||[]).map(Number);
+   const currentIds=(ids||[]).map(Number);
    const cand={};
    for(const id of currentIds){
      const list=[];
@@ -11316,7 +11316,7 @@ body.apAnswer2200 .piece.apActive2190 .block{box-shadow:none!important}
  }
  function frozenState2200(){
    if(frozenId2200!=null && S?.[frozenId2200]?.locked && S[frozenId2200].place)return S[frozenId2200];
-   for(const id of (window.ids||[]))if(S?.[id]?.locked && S[id].place){frozenId2200=Number(id);return S[id]}
+   for(const id of (ids||[]))if(S?.[id]?.locked && S[id].place){frozenId2200=Number(id);return S[id]}
    return null;
  }
  function enforce2200(){
@@ -11358,7 +11358,7 @@ body.apAnswer2200 .piece.apActive2190 .block{box-shadow:none!important}
  document.addEventListener('pointerdown',ev=>{
    if(!ev.target?.closest?.('#topRedo,#redoTop,#nextRedo,#nextReally,#nextTop,#nextTask,#stopReally228,#fullBtn,#jumboBtn,#partialBtn,#boardSessionGate button,#taskCard button'))return;
    setTimeout(()=>{
-     const any=(window.ids||[]).some(id=>S?.[id]?.locked&&S[id].place);
+     const any=(ids||[]).some(id=>S?.[id]?.locked&&S[id].place);
      if(!any){frozenId2200=null;used2200=false;if(top){top.disabled=false;top.classList.remove('freezeUsed');top.textContent='❄ FREEZE';top.removeAttribute('aria-disabled')}}
    },120);
  },true);
