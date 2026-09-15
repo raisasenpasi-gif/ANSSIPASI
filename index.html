@@ -11290,3 +11290,81 @@ body.v215Answer .piece.apActive2190 .block{box-shadow:none!important}
  document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
 })();
 </script>
+
+<!-- ANSSIPASI v2.2.00 FREEZE STATE AUTHORITY + VIEW CORRECT HARD SHIELD -->
+<style>
+/* A frozen piece is physically non-interactive in every board mode. */
+.piece.apFreezeLocked2200,.piece.apFreezeLocked2200 *{pointer-events:none!important;touch-action:none!important}
+.piece.apFreezeLocked2200{filter:drop-shadow(0 0 8px #53a8dc)!important}
+.piece.apFreezeLocked2200 .block{box-shadow:inset 0 0 0 3px #e9f7ff!important}
+/* VIEW CORRECT is read-only. PC must stay absent even if an older watchdog tries to repaint it. */
+body.apAnswer2200 #apTools2190{display:none!important;visibility:hidden!important;pointer-events:none!important}
+body.apAnswer2200 .piece.apActive2190{filter:drop-shadow(0 4px 4px #5a2e4666)!important}
+body.apAnswer2200 .piece.apActive2190 .block{box-shadow:none!important}
+</style>
+<script>
+(()=>{
+ const VERSION='v2.2.00';
+ const top=document.getElementById('freezeTop');
+ let frozenId2200=null, used2200=false;
+
+ function answerOpen2200(){
+   const tag=document.getElementById('answerModeTag');
+   return window.__anssipasiAnswerMode===true ||
+     document.body.classList.contains('v194Answer') || document.body.classList.contains('v215Answer') ||
+     !!(tag && getComputedStyle(tag).display!=='none');
+ }
+ function frozenState2200(){
+   if(frozenId2200!=null && S?.[frozenId2200]?.locked && S[frozenId2200].place)return S[frozenId2200];
+   for(const id of (window.ids||[]))if(S?.[id]?.locked && S[id].place){frozenId2200=Number(id);return S[id]}
+   return null;
+ }
+ function enforce2200(){
+   const st=frozenState2200();
+   if(st && frozenId2200!=null){
+     used2200=true;
+     let e=document.querySelector(`.piece[data-id="${frozenId2200}"]`);
+     if(e){
+       if(e.parentElement!==board)board.append(e);
+       Object.assign(e.style,{position:'absolute',left:(st.place.x*cell)+'px',top:(st.place.y*cell)+'px',transform:'scale(1)',transformOrigin:'top left',zIndex:8,pointerEvents:'none'});
+       e.classList.remove('sel','apActive2190');
+       e.classList.add('freezeLocked','apFreezeLocked2199','apFreezeLocked2200');
+       e.querySelectorAll('*').forEach(n=>n.style.setProperty('pointer-events','none','important'));
+     }
+   }
+   if(top && used2200){
+     top.disabled=true;top.classList.add('freezeUsed');top.textContent='❄ FREEZE ✓';top.setAttribute('aria-disabled','true');
+   }
+   const ans=answerOpen2200();document.body.classList.toggle('apAnswer2200',ans);
+   if(ans){
+     const pc=document.getElementById('apTools2190');if(pc)pc.style.setProperty('display','none','important');
+     document.querySelectorAll('.piece.apActive2190').forEach(e=>e.classList.remove('apActive2190'));
+   }
+ }
+
+ /* Capture shield: even historical input owners cannot select/drag/transform a frozen piece. */
+ ['pointerdown','pointerup','click','touchstart','touchend'].forEach(type=>document.addEventListener(type,ev=>{
+   const e=ev.target?.closest?.('.piece');if(!e)return;
+   const id=Number(e.dataset.id);if(!S?.[id]?.locked)return;
+   ev.preventDefault();ev.stopPropagation();try{ev.stopImmediatePropagation()}catch(_){}
+ },true));
+
+ /* Once the universal v2.1.99 FREEZE has placed its piece, adopt that state and keep it authoritative. */
+ const mo=new MutationObserver(()=>requestAnimationFrame(enforce2200));
+ if(board)mo.observe(board,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style']});
+ setInterval(enforce2200,40);
+
+ /* A genuinely new task/board clears our latch. REDO also starts a fresh attempt. */
+ document.addEventListener('pointerdown',ev=>{
+   if(!ev.target?.closest?.('#topRedo,#redoTop,#nextRedo,#nextReally,#nextTop,#nextTask,#stopReally228,#fullBtn,#jumboBtn,#partialBtn,#boardSessionGate button,#taskCard button'))return;
+   setTimeout(()=>{
+     const any=(window.ids||[]).some(id=>S?.[id]?.locked&&S[id].place);
+     if(!any){frozenId2200=null;used2200=false;if(top){top.disabled=false;top.classList.remove('freezeUsed');top.textContent='❄ FREEZE';top.removeAttribute('aria-disabled')}}
+   },120);
+ },true);
+
+ enforce2200();
+ document.title='ANSSIPASI '+VERSION+' · FREEZE LOCKED';
+ document.querySelectorAll('#v202Credit,#v201Credit,#v200Credit').forEach(c=>c.textContent='ANSSIPASI created by raisasenpasi and Helena · '+VERSION);
+})();
+</script>
